@@ -1263,6 +1263,7 @@ st.divider()
 hist_df_raw = get_portfolio_history(api)
 hist_df_adj = hist_df_raw.copy()
 roll_df = pd.DataFrame()
+phys_df = pd.DataFrame() # <--- ADD THIS LINE HERE
 
 if not hist_df_raw.empty and account:
     # Ensure UTC 
