@@ -25,6 +25,11 @@ services:
     container_name: aqi_scheduler
     command: cron -f
     shm_size: '2gb'              # CRITICAL: Prevents TensorFlow shared-memory crashes
+    # --- DNS OVERRIDE: Fixes Google API & Alpaca connection drops ---
+    dns:
+      - 8.8.8.8                  # Google Primary
+      - 1.1.1.1                  # Cloudflare Primary
+    # ----------------------------------------------------------------
     environment:
       - TZ=Australia/Brisbane
       - PYTHONUNBUFFERED=1       # Ensures cron Python logs output immediately
@@ -32,6 +37,7 @@ services:
       - .:/app
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
+      
     restart: always
     deploy:                      # The Guardrails
       resources:
