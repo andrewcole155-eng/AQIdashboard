@@ -1,38 +1,0 @@
-/opt/conda/envs/tf_noavx/lib/python3.9/site-packages/pennylane/__init__.py:21: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
-  import pkg_resources
-2026-05-28 18:06:07.782029: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-To enable the following instructions: SSE4.1 SSE4.2, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-2026-05-28 18:06:11,346 - INFO - Alpaca API initialized successfully for Data Pipeline.
-2026-05-28 18:06:11,346 - INFO - Loaded email configuration from /app/config.json
-2026-05-28 18:06:11,351 - INFO - Using device: CPU
-2026-05-28 18:06:11,411 - INFO - Quantum device 'default.qubit' created with 8 wires.
-2026-05-28 18:06:11,411 - INFO - --- Initializing Quantum Resources ---
-2026-05-28 18:06:11,414 - INFO - Quantum device 'default.qubit' created with 8 wires.
-2026-05-28 18:06:11,414 - INFO - Global Angle Embedding QNode defined successfully.
-2026-05-28 18:06:11,414 - INFO - Global Quantum Relationship QNode defined successfully.
-2026-05-28 18:06:11,415 - INFO - 📁 Models directory verified: /app/Models
-2026-05-28 18:06:11,415 - INFO - 🚀 AQI Quantum-PPO Orchestrator Started (Single Process Mode)
-2026-05-28 18:06:11,415 - INFO - 
-========================================
-=== Processing Ticker: SNAP ===
-========================================
-2026-05-28 18:06:11,415 - INFO - [SNAP] Starting Data Pipeline Stage (Alpaca Data)...
-2026-05-28 18:06:11,416 - INFO - Fetching SNAP data from Alpaca (End: 2026-05-28T07:46:11.415971+00:00)...
-2026-05-28 18:06:12,933 - INFO - [SNAP] Data Pipeline Success. Train: 900, Val: 301, Test: 402
-2026-05-28 18:06:12,933 - INFO - Creating inverted Shadow Market for balanced Long/Short curriculum...
-2026-05-28 18:06:12,941 - INFO - [SNAP] Augmented Training Data size: 1800 steps (50% Bull, 50% Bear).
-2026-05-28 18:06:12,941 - INFO - [SNAP] Starting Optuna Optimization Stage...
-2026-05-28 18:06:14,071 - INFO - --- Starting Optuna Trial 0 for SNAP ---
-2026-05-28 18:06:14,622 - INFO - 📊 KF1 Pre-Quantum State -> Mean: 0.4915, StdDev: 0.1530
-2026-05-28 18:06:14,622 - INFO - 🚀 Executing Quantum Amplitude Embedding for 1800 states...
-2026-05-28 18:06:14.624187: I tensorflow/core/common_runtime/process_util.cc:146] Creating new thread pool with default inter op setting: 2. Tune using inter_op_parallelism_threads for best performance.
-2026-05-28 18:06:49,485 - INFO - ✅ Quantum Execution Complete: Processed 1800 states in 34.86 seconds (0.0194s/step).
-2026-05-28 18:06:49,486 - INFO - 📊 Quantum Amplitude Dist (Z-ExpVal): Mean=0.0804, StdDev=0.1532
-2026-05-28 18:06:49,697 - INFO - Final features created (20): day_of_week, month_of_year, very_slow_ma_norm, fast_ma_norm, slow_ma_norm, slow_ma_slope_norm, rsi_7, rsi_14, rsi_21, daily_return, volatility, vol_of_vol, bollinger_percent, macd_norm, atr_norm, obv_change_norm, rsi_7_x_return, price_vs_200d_low, price_vs_200d_high, filtered_q_kalman
-2026-05-28 18:06:49,765 - INFO - 📊 KF1 Pre-Quantum State -> Mean: 0.4998, StdDev: 0.1253
-2026-05-28 18:06:49,765 - INFO - 🚀 Executing Quantum Amplitude Embedding for 301 states...
-2026-05-28 18:06:54,889 - INFO - ✅ Quantum Execution Complete: Processed 301 states in 5.12 seconds (0.0170s/step).
-2026-05-28 18:06:54,890 - INFO - 📊 Quantum Amplitude Dist (Z-ExpVal): Mean=0.0436, StdDev=0.0914
-2026-05-28 18:06:54,936 - INFO - Final features created (20): day_of_week, month_of_year, very_slow_ma_norm, fast_ma_norm, slow_ma_norm, slow_ma_slope_norm, rsi_7, rsi_14, rsi_21, daily_return, volatility, vol_of_vol, bollinger_percent, macd_norm, atr_norm, obv_change_norm, rsi_7_x_return, price_vs_200d_low, price_vs_200d_high, filtered_q_kalman
-2026-05-28 18:06:55,220 - INFO - [SNAP_trial_0] Weekend Run Detected (Optuna > 0). Starting with a completely fresh brain.
-Training SNAP_trial_0:   0%|          | 0/8 [00:00<?, ?ep/s]Training SNAP_trial_0:   0%|          | 0/8 [01:21<?, ?ep/s, AvgRew=4802.4]Training SNAP_trial_0:  12%|█▎        | 1/8 [01:21<09:29, 81.32s/ep, AvgRew=4802.4]Training SNAP_trial_0:  12%|█▎        | 1/8 [02:42<09:29, 81.32s/ep, AvgRew=5339.3]Training SNAP_trial_0:  25%|██▌       | 2/8 [03:55<12:26, 124.39s/ep, AvgRew=5339.3]Training SNAP_trial_0:  25%|██▌       | 2/8 [05:19<12:26, 124.39s/ep, AvgRew=7515.4]Training SNAP_trial_0:  38%|███▊      | 3/8 [05:52<10:04, 120.98s/ep, AvgRew=7515.4]Training SNAP_trial_0:  38%|███▊      | 3/8 [07:17<10:04, 120.98s/ep, AvgRew=-806.1]Training SNAP_trial_0:  50%|█████     | 4/8 [07:50<07:58, 119.65s/ep, AvgRew=-806.1]Training SNAP_trial_0:  50%|█████     | 4/8 [09:12<07:58, 119.65s/ep, AvgRew=3579.2]Training SNAP_trial_0:  62%|██████▎   | 5/8 [09:52<06:01, 120.36s/ep, AvgRew=3579.2]Training SNAP_trial_0:  62%|██████▎   | 5/8 [11:11<06:01, 120.36s/ep, AvgRew=-10115.9]Training SNAP_trial_0:  75%|███████▌  | 6/8 [11:44<03:55, 117.71s/ep, AvgRew=-10115.9]
