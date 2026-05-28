@@ -1099,10 +1099,7 @@ def generate_tactical_alerts(roll_df, global_metrics, margin_util, ghost_regime,
     return alerts
 
 def transmit_directives_to_agent(phys_df, roll_df, ghost_regime):
-    """Translates Streamlit math into a dedicated JSON override file for the trading bot."""
-    override_path = '/app/system_override.json'
-    temp_path = '/app/system_override.tmp'
-    
+    """Translates Streamlit math into a JSON payload and pushes to Google Sheets."""
     # 1. Default Baseline Parameters
     directives = {
         "active_regime": "STABLE",
@@ -1134,15 +1131,35 @@ def transmit_directives_to_agent(phys_df, roll_df, ghost_regime):
         if latest_win_rate > 55.0:
             directives["dynamic_take_profit_pct"] = 0.08  
             
-    # 3. Write directly to the dedicated Override File (Atomic Write)
+    # 3. Prepare Payload
     payload = {"global_directives": directives}
+    payload_str = json.dumps(payload, indent=4)
     
+    # 4. RATE LIMIT PROTECTION: Only write if the payload changed
+    if 'last_transmitted_payload' in st.session_state:
+        if st.session_state['last_transmitted_payload'] == payload_str:
+            return # Skip Google API call, nothing changed
+            
+    # 5. Write to Google Sheets
     try:
-        with open(temp_path, 'w') as f:
-            json.dump(payload, f, indent=4)
-        os.replace(temp_path, override_path) # Atomic swap prevents file locks
+        credentials = st.secrets["gcp_service_account"]
+        gc = gspread.service_account_from_dict(credentials)
+        sh = gc.open("Angel_Bot_Logs")
+        
+        # Connect to or create the Overrides tab
+        try:
+            worksheet = sh.worksheet("Overrides")
+        except gspread.exceptions.WorksheetNotFound:
+            worksheet = sh.add_worksheet(title="Overrides", rows="10", cols="5")
+            
+        # Update Cell A1 with the JSON string
+        worksheet.update(range_name='A1', values=[[payload_str]])
+        
+        # Save to session state so we don't spam the API next loop
+        st.session_state['last_transmitted_payload'] = payload_str
+        
     except Exception as e:
-            st.error(f"Agent Comms Failure: Could not write override file. {e}")
+        st.error(f"Agent Comms Failure: Could not write to Google Sheets. {e}")
 
 def format_log_line(line):
     """Formats a single log line to look like VS Code syntax highlighting."""
