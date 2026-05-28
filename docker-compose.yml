@@ -1,0 +1,40 @@
+services:
+  mission-control:
+    build: .
+    container_name: aqi_dashboard
+    working_dir: /app              # <--- ADD THIS LINE
+    command: /opt/conda/envs/tf_noavx/bin/streamlit run Mission_Control.py --server.port=8501 --server.address=0.0.0.0
+    environment:
+      - TZ=Australia/Brisbane
+      - PYTHONUNBUFFERED=1       # Ensures Streamlit logs output immediately
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app                   # Shared volume with the task-scheduler
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    restart: always
+    deploy:                      # Protects the VPS from UI memory leaks
+      resources:
+        limits:
+          cpus: '1'              # Dashboard rarely needs more than 1 core
+          memory: 1G             # Capped at 1GB RAM
+
+  task-scheduler:
+    build: .
+    container_name: aqi_scheduler
+    command: cron -f
+    shm_size: '2gb'              # CRITICAL: Prevents TensorFlow shared-memory crashes
+    environment:
+      - TZ=Australia/Brisbane
+      - PYTHONUNBUFFERED=1       # Ensures cron Python logs output immediately
+    volumes:
+      - .:/app
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    restart: always
+    deploy:                      # The Guardrails
+      resources:
+        limits:
+          cpus: '5'              # Leaves 1 core free for OS/Dashboard
+          memory: 6G             # Capped at 6GB to prevent VPS OOM death

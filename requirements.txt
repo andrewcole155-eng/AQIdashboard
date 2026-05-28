@@ -1,0 +1,9 @@
+streamlit
+pandas
+plotly
+alpaca-trade-api
+gspread
+yfinance
+psutil
+requests
+tzdata

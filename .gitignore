@@ -1,0 +1,32 @@
+# === Directories ===
+__pycache__/
+1_OBSOLETE/
+logs/
+Models/
+Observations/
+reports/
+
+# === Secrets, Configs, & State ===
+config_Alpaca_REAL_V2_ORIGINAL.json
+config_Alpaca_REAL_V2.json
+config.json
+google_creds.json
+optuna_studies.db
+trading_state.json
+trading_bot.lock
+environment.yml
+
+# === Trading & Analysis Scripts ===
+ALPACA_Trading_Bot_REAL_V11.py
+Quantum_Analysis_*.py
+run_quantum_script_*.sh
+saturday_report.py
+Signal_Echo.py
+test_sheets.py
+ppo_v*.txt
+
+# === Assets & Misc ===
+AQI_Logo.png
+crontab.docker
+1_Bash_Syntaxt.txt
+1_dockersyntax.txt

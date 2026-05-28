@@ -1,0 +1,17 @@
+# Ignore heavy model weights and scalers during build
+Models/
+*.h5
+*.pth
+*.joblib
+
+# Ignore logs and state files
+logs/
+*.log
+trading_state.json
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+
+# Ignore Git files if you use version control
+.git/
