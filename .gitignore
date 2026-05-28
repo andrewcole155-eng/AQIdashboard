@@ -25,6 +25,7 @@ cron_Quantum_Analysis_*.log
 cron_ALPACATradingBot_*.log
 saturday_report.py
 Signal_Echo.py
+cron_SignalEcho.log
 test_sheets.py
 ppo_v*.txt
 
