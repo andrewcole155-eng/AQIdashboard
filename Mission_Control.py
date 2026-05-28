@@ -130,11 +130,17 @@ def get_portfolio_history(_api):
         # Fetch ALL history first
         history = _api.get_portfolio_history(period='all', timeframe='1D')
         
+        # Guard clause if Alpaca returns empty data
+        if not history.timestamp: 
+            return pd.DataFrame()
+            
         df = pd.DataFrame({'timestamp': history.timestamp, 'equity': history.equity})
-        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
         
-        # --- FIXED: Start Date Synced with Email Script ---
-        start_date = pd.Timestamp("2025-05-24")
+        # FIX: Force strict UTC timezone awareness immediately upon conversion
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s', utc=True)
+        
+        # FIX: Ensure the cutoff date is also strictly UTC aware to prevent comparison crashes
+        start_date = pd.Timestamp("2025-05-24", tz='UTC')
         df = df[df['timestamp'] >= start_date].copy()
         
         # Sort to ensure calculations are correct
@@ -142,6 +148,8 @@ def get_portfolio_history(_api):
         
         return df
     except Exception as e:
+        # Expose the error to the dashboard so it never fails silently again
+        st.error(f"Portfolio History API Error: {e}") 
         return pd.DataFrame()
 
 def parse_latest_run_logic(logs):
