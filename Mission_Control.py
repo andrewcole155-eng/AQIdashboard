@@ -2732,7 +2732,7 @@ with tab5:
         st.info("Gathering historical Policy Landscape data...")
 
 with tab6:
-    # --- QUANTUM ALPHA MODEL LIFECYCLE MONITOR ---
+# --- QUANTUM ALPHA MODEL LIFECYCLE MONITOR ---
     st.markdown("### 🧠 Quantum Alpha Model Lifecycle Monitor")
     st.caption("Real-time alignment tracking between weekend optimization blueprints and live out-of-sample market execution.")
     
@@ -2746,20 +2746,49 @@ with tab6:
         html_output = ""
         for ticker, profile in sorted_health:
             status = profile['Status']
+            base_ir = float(profile['Base IR'])
+            live_ir = float(profile['Live IR'])
+            decay = float(profile['Decay'])
+            mdd = int(profile['MDD'])
             
-            # Set dynamic colors based on status (matching your dark theme)
-            statusColor = '#444' # Default
-            if 'OPTIMAL' in status: statusColor = '#00ff41' # Neon Green
-            if 'STABLE' in status: statusColor = '#ffb000' # Yellow/Orange
-            if 'DEGRADED' in status: statusColor = '#ff4b4b' # Red
+            # 1. Main Card Color
+            statusColor = '#444' 
+            if 'OPTIMAL' in status: statusColor = '#00ff41'
+            elif 'STABLE' in status: statusColor = '#ffb000'
+            elif 'DEGRADED' in status: statusColor = '#ff4b4b'
             
-            # Flat string concatenation prevents Streamlit from rendering as a code block
+            # 2. Information Ratio Intelligence
+            ir_diff = live_ir - base_ir
+            if live_ir >= base_ir:
+                ir_text = f"an impressive <strong>Live Information Ratio of {live_ir:.2f}</strong>, <span style='color: #00ff41;'>outperforming</span> its weekend benchmark ({base_ir:.2f}) by +{ir_diff:.2f}."
+            elif live_ir >= 0:
+                ir_text = f"a <strong>Live Information Ratio of {live_ir:.2f}</strong>. While still generating positive alpha, it is <span style='color: #ffb000;'>underperforming</span> its weekend benchmark ({base_ir:.2f}) by {ir_diff:.2f}."
+            else:
+                ir_text = f"a negative <strong>Live Information Ratio of {live_ir:.2f}</strong>, <span style='color: #ff4b4b;'>failing</span> to meet its weekend benchmark ({base_ir:.2f}) by a margin of {ir_diff:.2f}."
+
+            # 3. Decay Intelligence (Benchmark: 1.0, Throttle: 0.40)
+            if decay >= 0.70:
+                decay_text = f"The asset decay factor is excellent at <strong>{decay:.2f}</strong> (Target: 1.0), indicating strong structural alignment with the training blueprint."
+            elif decay >= 0.40:
+                decay_text = f"The asset decay factor sits at <strong style='color: #ffb000;'>{decay:.2f}</strong>, showing moderate edge erosion but remaining above the 0.40 throttle threshold."
+            else:
+                decay_text = f"Severe edge erosion detected with a decay factor of <strong style='color: #ff4b4b;'>{decay:.2f}</strong> (Critically below the 0.40 threshold), triggering autonomous risk throttling."
+
+            # 4. Drawdown Intelligence (Benchmark: < 21 days optimal, > 42 days degraded)
+            if mdd <= 21:
+                mdd_text = f"Drawdown duration is safely contained at <strong>{mdd} days</strong> (Optimal: < 21 days)."
+            elif mdd <= 42:
+                mdd_text = f"Drawdown duration is stretching to <strong style='color: #ffb000;'>{mdd} days</strong>, approaching structural pain thresholds."
+            else:
+                mdd_text = f"Drawdown duration has breached limits at <strong style='color: #ff4b4b;'>{mdd} days</strong> (Danger: > 42 days)."
+
+            # 5. Build the HTML Block
             html_output += f'<div style="margin-bottom: 12px; padding: 15px; border-left: 5px solid {statusColor}; background-color: #1e1e1e; border-radius: 6px;">'
             html_output += f'<strong style="font-size: 1.2em; color: #fff;">{ticker}</strong>'
             html_output += f'<span style="background-color: {statusColor}; color: #111; padding: 3px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; margin-left: 10px;">{status}</span>'
-            html_output += f'<p style="margin: 8px 0 0 0; font-size: 0.95em; line-height: 1.5; color: #ccc;">'
-            html_output += f'The model displays a <strong>Base Information Ratio of {profile["Base IR"]}</strong>, shifting to a <strong>Live IR of {profile["Live IR"]}</strong> in recent sessions. '
-            html_output += f'An asset decay factor of <strong style="color: {statusColor};">{profile["Decay"]}</strong> is currently applied, with the system monitoring a Maximum Drawdown (MDD) window of <strong>{profile["MDD"]} days</strong>.'
+            html_output += f'<p style="margin: 10px 0 0 0; font-size: 0.95em; line-height: 1.6; color: #ccc;">'
+            html_output += f'The model is currently displaying {ir_text}<br><br>'
+            html_output += f'{decay_text} {mdd_text}'
             html_output += f'</p></div>'
             
         # Render the custom HTML block safely
