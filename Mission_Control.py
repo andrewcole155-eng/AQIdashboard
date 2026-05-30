@@ -1917,10 +1917,10 @@ with tab1:
             st.caption("No recent filled orders found.")
 
 with tab2:
-    st.markdown("### Terminal Output (Last 50 Lines)")
+    st.markdown("### Terminal Output (Last 3000 Lines)")
     
     if logs:
-        recent_logs = logs[-50:] 
+        recent_logs = logs[-3000:] 
         formatted_logs = [format_log_line(line) for line in recent_logs]
         log_html = "".join(formatted_logs)
         st.markdown(f'<div class="terminal-box">{log_html}</div>', unsafe_allow_html=True)
