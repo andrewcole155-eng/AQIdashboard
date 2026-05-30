@@ -1506,32 +1506,40 @@ with tab1:
     st.caption("Real-time alignment tracking between weekend optimization blueprints and live out-of-sample market execution.")
     
     if model_health:
-        health_df = pd.DataFrame.from_dict(model_health, orient='index').reset_index()
-        health_df.rename(columns={'index': 'Ticker'}, inplace=True)
-        
         # Sort so Degraded models naturally bubble to the top of your view
-        health_df['Sort_Key'] = health_df['Status'].apply(lambda x: 0 if 'DEGRADED' in x else (1 if 'STABLE' in x else 2))
-        health_df = health_df.sort_values(by=['Sort_Key', 'Decay']).drop(columns=['Sort_Key'])
-
-        st.dataframe(
-            health_df,
-            width='stretch',
-            hide_index=True,
-            column_config={
-                "Ticker": st.column_config.TextColumn("Ticker", width="small"),
-                "Status": st.column_config.TextColumn("Model Status", width="medium"),
-                "Base IR": st.column_config.NumberColumn("Weekend Base", format="%.2f"),
-                "Live IR": st.column_config.NumberColumn("Live 30d IR", format="%.2f"),
-                "Decay": st.column_config.ProgressColumn(
-                    "Decay Ratio", 
-                    help="Ratio of Live IR to Expected Validation IR. < 0.40 triggers autonomous capital throttling.",
-                    min_value=0.0, 
-                    max_value=1.0, 
-                    format="%.2f"
-                ),
-                "MDD": st.column_config.NumberColumn("MDD Window (days)", format="%d")
-            }
+        sorted_health = sorted(
+            model_health.items(), 
+            key=lambda x: (0 if 'DEGRADED' in x[1]['Status'] else (1 if 'STABLE' in x[1]['Status'] else 2), x[1]['Decay'])
         )
+
+        html_output = '<div style="font-family: Arial, sans-serif; padding: 5px; color: #fff;">'
+        
+        for ticker, profile in sorted_health:
+            status = profile['Status']
+            
+            # Set dynamic colors based on status (matching your dark theme)
+            statusColor = '#444' # Default
+            if 'OPTIMAL' in status: statusColor = '#00ff41' # Neon Green
+            if 'STABLE' in status: statusColor = '#ffb000' # Yellow/Orange
+            if 'DEGRADED' in status: statusColor = '#ff4b4b' # Red
+            
+            # Build the intelligence cards
+            html_output += f"""
+            <div style="margin-bottom: 15px; padding: 15px; border-left: 5px solid {statusColor}; background-color: #1e1e1e; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+                <strong style="font-size: 1.2em; color: #fff;">{ticker}</strong> 
+                <span style="background-color: {statusColor}; color: #111; padding: 3px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; margin-left: 10px;">{status}</span>
+                <p style="margin: 8px 0 0 0; font-size: 0.95em; line-height: 1.5; color: #ccc;">
+                    The model displays a <strong>Base Information Ratio of {profile['Base IR']}</strong>, shifting to a <strong>Live IR of {profile['Live IR']}</strong> in recent sessions. 
+                    An asset decay factor of <strong style="color: {statusColor};">{profile['Decay']}</strong> is currently applied, with the system monitoring a Maximum Drawdown (MDD) window of <strong>{profile['MDD']} days</strong>.
+                </p>
+            </div>
+            """
+            
+        html_output += '</div>'
+        
+        # Render the custom HTML block in Streamlit
+        st.markdown(html_output, unsafe_allow_html=True)
+        
     else:
         st.info("Awaiting model performance data from the live execution log stream...")
     # --------------------------------------------------
