@@ -1421,12 +1421,13 @@ if isinstance(orders, list):
 # =====================================================================
 # 2. MAIN TABS
 # =====================================================================
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🧠 Bot Logic & Positions", 
     "📜 Raw Logs", 
     "📈 Real Performance", 
     "👻 Ghost Performance", 
-    "🌌 Phase Space" # <--- ADDED TAB 5
+    "🌌 Phase Space",
+    "🧬 Model Lifecycle" # <--- ADDED TAB 6
 ])
 
 # Fetch the live state file for the Ghost tabs
@@ -1500,44 +1501,6 @@ with tab1:
         b2.caption(f"⚪ Neutral/Hold: {hold_count}")
         b3.caption(f"🔴 Short Bias: {short_count}")
 
-    # --- NEW: QUANTUM ALPHA MODEL LIFECYCLE MONITOR ---
-    st.divider()
-    st.markdown("### 🧠 Quantum Alpha Model Lifecycle Monitor")
-    st.caption("Real-time alignment tracking between weekend optimization blueprints and live out-of-sample market execution.")
-    
-    if model_health:
-        # Sort so Degraded models naturally bubble to the top of your view
-        sorted_health = sorted(
-            model_health.items(), 
-            key=lambda x: (0 if 'DEGRADED' in x[1]['Status'] else (1 if 'STABLE' in x[1]['Status'] else 2), x[1]['Decay'])
-        )
-
-        html_output = ""
-        for ticker, profile in sorted_health:
-            status = profile['Status']
-            
-            # Set dynamic colors based on status (matching your dark theme)
-            statusColor = '#444' # Default
-            if 'OPTIMAL' in status: statusColor = '#00ff41' # Neon Green
-            if 'STABLE' in status: statusColor = '#ffb000' # Yellow/Orange
-            if 'DEGRADED' in status: statusColor = '#ff4b4b' # Red
-            
-            # Flat string concatenation prevents Streamlit from rendering as a code block
-            html_output += f'<div style="margin-bottom: 12px; padding: 15px; border-left: 5px solid {statusColor}; background-color: #1e1e1e; border-radius: 6px;">'
-            html_output += f'<strong style="font-size: 1.2em; color: #fff;">{ticker}</strong>'
-            html_output += f'<span style="background-color: {statusColor}; color: #111; padding: 3px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; margin-left: 10px;">{status}</span>'
-            html_output += f'<p style="margin: 8px 0 0 0; font-size: 0.95em; line-height: 1.5; color: #ccc;">'
-            html_output += f'The model displays a <strong>Base Information Ratio of {profile["Base IR"]}</strong>, shifting to a <strong>Live IR of {profile["Live IR"]}</strong> in recent sessions. '
-            html_output += f'An asset decay factor of <strong style="color: {statusColor};">{profile["Decay"]}</strong> is currently applied, with the system monitoring a Maximum Drawdown (MDD) window of <strong>{profile["MDD"]} days</strong>.'
-            html_output += f'</p></div>'
-            
-        # Render the custom HTML block safely
-        st.markdown(html_output, unsafe_allow_html=True)
-        
-    else:
-        st.info("Awaiting model performance data from the live execution log stream...")
-    # --------------------------------------------------
-
     st.divider()
 
     # --- 2. NEURAL CONVICTION RADAR ---
@@ -1583,7 +1546,7 @@ with tab1:
 
     st.divider()
 
-# --- 3. MAIN COLUMNS ---
+    # --- 3. MAIN COLUMNS ---
     c1, c2 = st.columns([3, 4])
     
     with c1:
@@ -2767,6 +2730,44 @@ with tab5:
 
     else:
         st.info("Gathering historical Policy Landscape data...")
+
+with tab6:
+    # --- QUANTUM ALPHA MODEL LIFECYCLE MONITOR ---
+    st.markdown("### 🧠 Quantum Alpha Model Lifecycle Monitor")
+    st.caption("Real-time alignment tracking between weekend optimization blueprints and live out-of-sample market execution.")
+    
+    if model_health:
+        # Sort so Degraded models naturally bubble to the top of your view
+        sorted_health = sorted(
+            model_health.items(), 
+            key=lambda x: (0 if 'DEGRADED' in x[1]['Status'] else (1 if 'STABLE' in x[1]['Status'] else 2), x[1]['Decay'])
+        )
+
+        html_output = ""
+        for ticker, profile in sorted_health:
+            status = profile['Status']
+            
+            # Set dynamic colors based on status (matching your dark theme)
+            statusColor = '#444' # Default
+            if 'OPTIMAL' in status: statusColor = '#00ff41' # Neon Green
+            if 'STABLE' in status: statusColor = '#ffb000' # Yellow/Orange
+            if 'DEGRADED' in status: statusColor = '#ff4b4b' # Red
+            
+            # Flat string concatenation prevents Streamlit from rendering as a code block
+            html_output += f'<div style="margin-bottom: 12px; padding: 15px; border-left: 5px solid {statusColor}; background-color: #1e1e1e; border-radius: 6px;">'
+            html_output += f'<strong style="font-size: 1.2em; color: #fff;">{ticker}</strong>'
+            html_output += f'<span style="background-color: {statusColor}; color: #111; padding: 3px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; margin-left: 10px;">{status}</span>'
+            html_output += f'<p style="margin: 8px 0 0 0; font-size: 0.95em; line-height: 1.5; color: #ccc;">'
+            html_output += f'The model displays a <strong>Base Information Ratio of {profile["Base IR"]}</strong>, shifting to a <strong>Live IR of {profile["Live IR"]}</strong> in recent sessions. '
+            html_output += f'An asset decay factor of <strong style="color: {statusColor};">{profile["Decay"]}</strong> is currently applied, with the system monitoring a Maximum Drawdown (MDD) window of <strong>{profile["MDD"]} days</strong>.'
+            html_output += f'</p></div>'
+            
+        # Render the custom HTML block safely
+        st.markdown(html_output, unsafe_allow_html=True)
+        
+    else:
+        st.info("Awaiting model performance data from the live execution log stream...")
+    # --------------------------------------------------
 
 # === AUTO REFRESH LOOP ===
 if auto_refresh:
