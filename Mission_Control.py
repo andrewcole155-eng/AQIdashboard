@@ -1277,6 +1277,19 @@ if account:
     # Unpack the new ghost_regime AND model_health variables here
     last_run_str, last_run_dt, parsed_signals, watchlist_data, conviction_data, ghost_regime, model_health = parse_latest_run_logic(logs)
 
+    # --- NEW: WEEKEND PERSISTENCE MEMORY ---
+    # Because 24/7 telemetry floods the log buffer, the actual trade signals get pushed out when the market is closed.
+    # This ensures the dashboard "remembers" the Friday closing conviction levels all weekend.
+    if conviction_data:
+        st.session_state['saved_conviction'] = conviction_data
+        st.session_state['saved_signals'] = parsed_signals
+        st.session_state['saved_watchlist'] = watchlist_data
+    else:
+        conviction_data = st.session_state.get('saved_conviction', {})
+        parsed_signals = st.session_state.get('saved_signals', {})
+        watchlist_data = st.session_state.get('saved_watchlist', [])
+    # -----------------------------------------
+
     # Calculate "Time Since Last Run"
     status_label = "Bot Status"
     status_val = "Unknown"
