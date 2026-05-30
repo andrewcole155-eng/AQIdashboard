@@ -191,7 +191,9 @@ def parse_latest_run_logic(logs):
                             "Base IR": float(parts[1].split(":")[1].strip()),
                             "Live IR": float(parts[2].split(":")[1].strip()),
                             "Decay": float(parts[3].split(":")[1].strip()),
-                            "MDD": int(re.search(r"(\d+)d", parts[4]).group(1))
+                            "MDD": int(re.search(r"(\d+)d", parts[4]).group(1)),
+                            "Base MDD": int(re.search(r"(\d+)d", parts[5]).group(1)) if len(parts) > 5 else 0,
+                            "Base WR": float(re.search(r"([\d\.]+)%", parts[6]).group(1)) if len(parts) > 6 else 0.0
                         }
             except Exception:
                 pass
@@ -2750,6 +2752,8 @@ with tab6:
             live_ir = float(profile['Live IR'])
             decay = float(profile['Decay'])
             mdd = int(profile['MDD'])
+            base_mdd = int(profile.get('Base MDD', 0))
+            base_wr = float(profile.get('Base WR', 0.0))
             
             # 1. Main Card Color
             statusColor = '#444' 
@@ -2766,7 +2770,7 @@ with tab6:
             else:
                 ir_text = f"a negative <strong>Live Information Ratio of {live_ir:.2f}</strong>, <span style='color: #ff4b4b;'>failing</span> to meet its weekend benchmark ({base_ir:.2f}) by a margin of {ir_diff:.2f}."
 
-            # 3. Decay Intelligence (Benchmark: 1.0, Throttle: 0.40)
+            # 3. Decay Intelligence
             if decay >= 0.70:
                 decay_text = f"The asset decay factor is excellent at <strong>{decay:.2f}</strong> (Target: 1.0), indicating strong structural alignment with the training blueprint."
             elif decay >= 0.40:
@@ -2774,7 +2778,7 @@ with tab6:
             else:
                 decay_text = f"Severe edge erosion detected with a decay factor of <strong style='color: #ff4b4b;'>{decay:.2f}</strong> (Critically below the 0.40 threshold), triggering autonomous risk throttling."
 
-            # 4. Drawdown Intelligence (Benchmark: < 21 days optimal, > 42 days degraded)
+            # 4. Drawdown Intelligence 
             if mdd <= 21:
                 mdd_text = f"Drawdown duration is safely contained at <strong>{mdd} days</strong> (Optimal: < 21 days)."
             elif mdd <= 42:
@@ -2782,16 +2786,23 @@ with tab6:
             else:
                 mdd_text = f"Drawdown duration has breached limits at <strong style='color: #ff4b4b;'>{mdd} days</strong> (Danger: > 42 days)."
 
-            # 5. Build the HTML Block
+            # 5. Build the HTML Block with Side-By-Side Comparison Grid
             html_output += f'<div style="margin-bottom: 12px; padding: 15px; border-left: 5px solid {statusColor}; background-color: #1e1e1e; border-radius: 6px;">'
             html_output += f'<strong style="font-size: 1.2em; color: #fff;">{ticker}</strong>'
             html_output += f'<span style="background-color: {statusColor}; color: #111; padding: 3px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; margin-left: 10px;">{status}</span>'
+            
+            # --- THE NEW SIDE-BY-SIDE HUD ---
+            html_output += f'<div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85em; color: #aaa; background: #2a2a2a; padding: 10px; border-radius: 4px;">'
+            html_output += f'<div><strong style="color: #fff;">🏗️ Training Blueprint</strong><br>Base IR: {base_ir:.2f} &nbsp;|&nbsp; Win Rate: {base_wr:.1f}% &nbsp;|&nbsp; MDD: {base_mdd}d</div>'
+            html_output += f'<div><strong style="color: #fff;">⚡ Live Execution</strong><br>Live IR: {live_ir:.2f} &nbsp;|&nbsp; Decay: {decay:.2f} &nbsp;|&nbsp; MDD: {mdd}d</div>'
+            html_output += f'</div>'
+            # --------------------------------
+            
             html_output += f'<p style="margin: 10px 0 0 0; font-size: 0.95em; line-height: 1.6; color: #ccc;">'
             html_output += f'The model is currently displaying {ir_text}<br><br>'
             html_output += f'{decay_text} {mdd_text}'
             html_output += f'</p></div>'
             
-        # Render the custom HTML block safely
         st.markdown(html_output, unsafe_allow_html=True)
         
     else:
