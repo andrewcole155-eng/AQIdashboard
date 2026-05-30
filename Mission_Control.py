@@ -159,10 +159,12 @@ def parse_latest_run_logic(logs):
     2. Watchlist (High potential)
     3. Neural Conviction (Latest confidence score and Action)
     4. Ghost Regime Status
+    5. Model Health Metrics (Decay & Edge)
     """
     signals = {}
     watchlist = [] 
     neural_conviction = {} 
+    model_health = {} # <--- NEW: Dictionary to hold the model profiles
     last_run_timestamp = None
     last_run_str = "Unknown"
     
@@ -176,6 +178,25 @@ def parse_latest_run_logic(logs):
     action_map = {"0": "HOLD", "1": "LONG", "2": "SHORT", "3": "CLOSE"}
     
     for line in reversed(logs):
+        # --- NEW: Extract Model Health Analytics ---
+        if "Profile:" in line and "Base IR:" in line:
+            try:
+                parts = line.split("|")
+                ticker_match = re.search(r"🧠\s+([A-Z]+)\s+Profile:\s+(.*?)\s*$", parts[0])
+                if ticker_match:
+                    t_name = ticker_match.group(1)
+                    if t_name not in model_health:
+                        model_health[t_name] = {
+                            "Status": ticker_match.group(2).strip(),
+                            "Base IR": float(parts[1].split(":")[1].strip()),
+                            "Live IR": float(parts[2].split(":")[1].strip()),
+                            "Decay": float(parts[3].split(":")[1].strip()),
+                            "MDD": int(re.search(r"(\d+)d", parts[4]).group(1))
+                        }
+            except Exception:
+                pass
+        # ------------------------------------------
+
         # Extract Ghost Regime
         if "GHOST REGIME |" in line and ghost_regime["Long_MA"] == "0.0%":
             try:
@@ -232,7 +253,7 @@ def parse_latest_run_logic(logs):
                     pass
 
     unique_watchlist = {v['Ticker']:v for v in watchlist}.values()
-    return last_run_str, last_run_timestamp, signals, list(unique_watchlist), neural_conviction, ghost_regime
+    return last_run_str, last_run_timestamp, signals, list(unique_watchlist), neural_conviction, ghost_regime, model_health
 
 @st.cache_data(ttl=300)
 def get_market_benchmark():
@@ -1251,8 +1272,8 @@ if account:
     
     # Process Logs
     logs = read_bot_logs()
-    # Unpack the new ghost_regime variable here
-    last_run_str, last_run_dt, parsed_signals, watchlist_data, conviction_data, ghost_regime = parse_latest_run_logic(logs)
+    # Unpack the new ghost_regime AND model_health variables here
+    last_run_str, last_run_dt, parsed_signals, watchlist_data, conviction_data, ghost_regime, model_health = parse_latest_run_logic(logs)
 
     # Calculate "Time Since Last Run"
     status_label = "Bot Status"
@@ -1478,6 +1499,42 @@ with tab1:
         b1.caption(f"🟢 Long Bias: {long_count}")
         b2.caption(f"⚪ Neutral/Hold: {hold_count}")
         b3.caption(f"🔴 Short Bias: {short_count}")
+
+    # --- NEW: QUANTUM ALPHA MODEL LIFECYCLE MONITOR ---
+    st.divider()
+    st.markdown("### 🧠 Quantum Alpha Model Lifecycle Monitor")
+    st.caption("Real-time alignment tracking between weekend optimization blueprints and live out-of-sample market execution.")
+    
+    if model_health:
+        health_df = pd.DataFrame.from_dict(model_health, orient='index').reset_index()
+        health_df.rename(columns={'index': 'Ticker'}, inplace=True)
+        
+        # Sort so Degraded models naturally bubble to the top of your view
+        health_df['Sort_Key'] = health_df['Status'].apply(lambda x: 0 if 'DEGRADED' in x else (1 if 'STABLE' in x else 2))
+        health_df = health_df.sort_values(by=['Sort_Key', 'Decay']).drop(columns=['Sort_Key'])
+
+        st.dataframe(
+            health_df,
+            width='stretch',
+            hide_index=True,
+            column_config={
+                "Ticker": st.column_config.TextColumn("Ticker", width="small"),
+                "Status": st.column_config.TextColumn("Model Status", width="medium"),
+                "Base IR": st.column_config.NumberColumn("Weekend Base", format="%.2f"),
+                "Live IR": st.column_config.NumberColumn("Live 30d IR", format="%.2f"),
+                "Decay": st.column_config.ProgressColumn(
+                    "Decay Ratio", 
+                    help="Ratio of Live IR to Expected Validation IR. < 0.40 triggers autonomous capital throttling.",
+                    min_value=0.0, 
+                    max_value=1.0, 
+                    format="%.2f"
+                ),
+                "MDD": st.column_config.NumberColumn("MDD Window (days)", format="%d")
+            }
+        )
+    else:
+        st.info("Awaiting model performance data from the live execution log stream...")
+    # --------------------------------------------------
 
     st.divider()
 
