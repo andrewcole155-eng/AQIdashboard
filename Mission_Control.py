@@ -2458,10 +2458,10 @@ with tab4:
         if long_hist:
             # Calculate Moving Average
             long_ma = sum(long_hist[-5:]) / min(5, len(long_hist))
-            st.metric("Long Edge MA (Last 5 Trades)", f"{long_ma*100:.2f}%", 
-                      delta="LIVE (GATES OPEN)" if long_ma >= -0.005 else "SIMULATION (BLOCKED)", 
-                      delta_color="normal" if long_ma >= -0.005 else "inverse")
-            
+            st.metric("Long Edge EMA (9-Period)", f"{long_ema*100:.2f}%", 
+                  delta="LIVE (GATES OPEN)" if long_mult > 0 else "SIMULATION (BLOCKED)", 
+                  delta_color="normal" if long_mult > 0 else "inverse")
+
             # Plot Cumulative Ghost PnL
             long_cum = np.cumsum(long_hist) * 100
             fig_g_long = px.line(x=range(1, len(long_cum)+1), y=long_cum, markers=True)
@@ -2481,10 +2481,10 @@ with tab4:
         short_hist = ghost_history.get('short', [])
         if short_hist:
             short_ma = sum(short_hist[-5:]) / min(5, len(short_hist))
-            st.metric("Short Edge MA (Last 5 Trades)", f"{short_ma*100:.2f}%", 
-                      delta="LIVE (GATES OPEN)" if short_ma >= -0.005 else "SIMULATION (BLOCKED)", 
-                      delta_color="normal" if short_ma >= -0.005 else "inverse")
-            
+            st.metric("Short Edge EMA (9-Period)", f"{short_ema*100:.2f}%", 
+                  delta="LIVE (GATES OPEN)" if short_mult > 0 else "SIMULATION (BLOCKED)", 
+                  delta_color="normal" if short_mult > 0 else "inverse")
+
             # Plot Cumulative Ghost PnL
             short_cum = np.cumsum(short_hist) * 100
             fig_g_short = px.line(x=range(1, len(short_cum)+1), y=short_cum, markers=True)
