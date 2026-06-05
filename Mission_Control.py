@@ -1505,6 +1505,36 @@ with tab1:
     c_light1.metric("Long Alloc.", f"{long_mult:.2f}x", f"EMA: {long_ema:.2%} | {long_color}", delta_color="off")
     c_light2.metric("Short Alloc.", f"{short_mult:.2f}x", f"EMA: {short_ema:.2%} | {short_color}", delta_color="off")
 
+    # --- NEW: GHOST ENGINE SAFETY LATCH VISUALIZATION ---
+    if long_mult == 0.0 or short_mult == 0.0:
+        st.markdown("""
+        <div style="background-color: rgba(255, 75, 75, 0.1); border-left: 5px solid #ff4b4b; padding: 15px; border-radius: 4px; margin-top: 15px; margin-bottom: 15px;">
+            <strong style="color: #ff4b4b; font-size: 1.1em;">🛡️ SAFETY LATCH ENGAGED: Live Execution Severed</strong><br>
+            <span style="color: #cccccc; font-size: 0.9em;">The Ghost Engine has dropped the system into simulation mode. Below is the telemetry confirming structural edge decay, justifying the capital freeze.</span>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Calculate Average IRs across the Swarm
+        if model_health:
+            valid_models = [m for m in model_health.values() if 'Live IR' in m and 'Base IR' in m]
+            if valid_models:
+                avg_base_ir = sum(float(m['Base IR']) for m in valid_models) / len(valid_models)
+                avg_live_ir = sum(float(m['Live IR']) for m in valid_models) / len(valid_models)
+                ir_div = avg_live_ir - avg_base_ir
+            else:
+                avg_base_ir, avg_live_ir, ir_div = 0.0, 0.0, 0.0
+        else:
+            avg_base_ir, avg_live_ir, ir_div = 0.0, 0.0, 0.0
+            
+        # Extract Ulcer Index from cached global metrics
+        current_ulcer = st.session_state.get('global_metrics', {}).get('Ulcer Index', 0.0)
+        
+        gl1, gl2, gl3 = st.columns(3)
+        gl1.metric("Swarm Benchmark (Base IR)", f"{avg_base_ir:.2f}")
+        gl2.metric("Swarm Reality (Live IR)", f"{avg_live_ir:.2f}", f"{ir_div:+.2f} Divergence", delta_color="inverse" if ir_div < 0 else "normal")
+        gl3.metric("System Pain (Ulcer Index)", f"{current_ulcer:.2f}", "Threshold: > 4.0", delta_color="inverse" if current_ulcer > 4.0 else "normal")
+    # ----------------------------------------------------
+
     # --- UPGRADED: CAPITAL DEPLOYMENT STATES ---
     st.markdown("#### 🔋 Capital Deployment Status")
     
