@@ -89,12 +89,20 @@ def read_bot_logs():
 
 @st.cache_data(ttl=60)
 def get_bot_state():
-    """Reads the local JSON state file to extract Ghost Positions and History."""
-    state_path = '/app/trading_state.json'
+    """Reads the live bot state from the Google Sheets bridge."""
     try:
-        with open(state_path, 'r') as f:
-            return json.load(f)
+        credentials = st.secrets["gcp_service_account"]
+        gc = gspread.service_account_from_dict(credentials)
+        sh = gc.open("Angel_Bot_Logs")
+        
+        worksheet = sh.worksheet("Trading_State")
+        state_str = worksheet.acell('A1').value
+        
+        if state_str:
+            return json.loads(state_str)
+        return {}
     except Exception as e:
+        # Fails gracefully if the tab doesn't exist yet or API rate limits hit
         return {}
 
 @st.cache_data(ttl=30)
