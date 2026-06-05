@@ -1277,7 +1277,7 @@ if account:
     # Process Logs
     logs = read_bot_logs()
     # Unpack the new ghost_regime AND model_health variables here
-    last_run_str, last_run_dt, parsed_signals, watchlist_data, conviction_data, ghost_regime, model_health = parse_latest_run_logic(logs)
+    last_run_str, last_run_dt, parsed_signals, watchlist_data, conviction_data, model_health = parse_latest_run_logic(logs)
 
     # --- NEW: WEEKEND PERSISTENCE MEMORY ---
     if conviction_data and len(conviction_data) > 0:
@@ -1294,14 +1294,6 @@ if account:
         st.session_state['saved_model_health'] = model_health
     else:
         model_health = st.session_state.get('saved_model_health', {})
-        
-    # Cache Ghost Regime separately
-    if ghost_regime.get("Long_MA") != "0.0%":
-        st.session_state['saved_ghost_regime'] = ghost_regime
-    else:
-        # Fallback to default if memory is empty
-        ghost_regime = st.session_state.get('saved_ghost_regime', {"Long": True, "Short": True, "Long_MA": "0.0%", "Short_MA": "0.0%"})
-    # -----------------------------------------
 
     # Calculate "Time Since Last Run"
     status_label = "Bot Status"
