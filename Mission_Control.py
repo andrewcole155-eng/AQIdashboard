@@ -1400,7 +1400,7 @@ margin_util = (maint_margin / equity_val * 100) if equity_val > 0 else 0.0
 alerts = generate_tactical_alerts(roll_df, st.session_state.get('global_metrics', {}), margin_util, phys_df)
 
 # ---> ADD THIS LINE TO TRIGGER THE WRITE <---
-transmit_directives_to_agent(phys_df, roll_df, ghost_regime)
+transmit_directives_to_agent(phys_df, roll_df)
 
 if alerts:
     st.markdown("### ⚡ Active System Overrides")
