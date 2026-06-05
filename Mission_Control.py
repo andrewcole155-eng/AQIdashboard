@@ -263,7 +263,7 @@ def parse_latest_run_logic(logs):
                     pass
 
     unique_watchlist = {v['Ticker']:v for v in watchlist}.values()
-    return last_run_str, last_run_timestamp, signals, list(unique_watchlist), neural_conviction, ghost_regime, model_health
+    return last_run_str, last_run_timestamp, signals, list(unique_watchlist), neural_conviction, model_health
 
 @st.cache_data(ttl=300)
 def get_market_benchmark():
@@ -1079,7 +1079,7 @@ def calculate_rolling_edge(df, window=30):
     
     return r_df.dropna(subset=['rolling_return', 'rolling_sharpe', 'rolling_dd'])
 
-def generate_tactical_alerts(roll_df, global_metrics, margin_util, ghost_regime, phys_df): # <-- ADD phys_df HERE
+def generate_tactical_alerts(roll_df, global_metrics, margin_util, phys_df):
     """Evaluates rolling metrics and reports active autonomous system adjustments."""
     alerts = []
     
@@ -1090,38 +1090,32 @@ def generate_tactical_alerts(roll_df, global_metrics, margin_util, ghost_regime,
     latest_ulcer = roll_df['rolling_ulcer'].iloc[-1]
     latest_win_rate = roll_df['rolling_win_rate'].iloc[-1]
 
-    # --- 1. GHOST REGIME (Directional Gates) ---
-    if not ghost_regime.get("Long", True):
-        alerts.append({"level": "error", "icon": "🔴", "title": f"Longs Suspended (Ghost MA: {ghost_regime.get('Long_MA')})", "action": "GHOST GATE CLOSED. The edge for Longs is decaying. Real capital blocked until simulation recovers."})
-    if not ghost_regime.get("Short", True):
-        alerts.append({"level": "error", "icon": "🔴", "title": f"Shorts Suspended (Ghost MA: {ghost_regime.get('Short_MA')})", "action": "GHOST GATE CLOSED. The edge for Shorts is decaying. Real capital blocked until simulation recovers."})
-
-    # --- 2. SHARPE (Position Sizing) ---
+    # --- 1. SHARPE (Position Sizing) ---
     if pd.notna(latest_sharpe):
         if latest_sharpe < 0.5:
             alerts.append({"level": "error", "icon": "📉", "title": f"Regime Shift: Rolling Sharpe is weak ({latest_sharpe:.2f})", "action": "POSITION SIZING HALVED. The risk-adjusted edge is decaying. Base lot sizes reduced by 50% until Sharpe recovers > 1.0."})
         elif latest_sharpe > 1.5:
             alerts.append({"level": "success", "icon": "🟢", "title": f"Elite Edge: Sharpe is surging ({latest_sharpe:.2f})", "action": "BASE SIZING RESTORED. The regime is highly favorable. System is deploying full-lot sizes."})
 
-    # --- 3. ULCER INDEX (Defense & Stops) ---
+    # --- 2. ULCER INDEX (Defense & Stops) ---
     if pd.notna(latest_ulcer):
         if latest_ulcer > 4.0:
             alerts.append({"level": "warning", "icon": "🛡️", "title": f"Pain Threshold Reached: Ulcer Index elevated ({latest_ulcer:.2f})", "action": "DEFENSIVE PROTOCOL ENGAGED. Standard stops tightened to -1.5%. Winners are being trailed to breakeven immediately."})
         elif latest_ulcer < 1.5:
             alerts.append({"level": "success", "icon": "🕊️", "title": f"Smooth Sailing: Low Ulcer Index ({latest_ulcer:.2f})", "action": "STANDARD STOPS RESTORED. Drawdowns are minimal. Trades are operating with full -3% breathing room."})
 
-    # --- 4. WIN RATE (Take Profits) ---
+    # --- 3. WIN RATE (Take Profits) ---
     if pd.notna(latest_win_rate):
         if latest_win_rate < 45.0:
             alerts.append({"level": "info", "icon": "✂️", "title": f"Choppy Execution: Win rate dropping ({latest_win_rate:.1f}%)", "action": "TARGETS FRONT-RUN. Market lacks follow-through. System is scaling out of winners early at +3%."})
         elif latest_win_rate > 55.0:
             alerts.append({"level": "success", "icon": "🏃‍♂️", "title": f"High Hit Rate: Win rate is strong ({latest_win_rate:.1f}%)", "action": "TRAIL/HOLD ACTIVATED. Market is respecting targets. System is holding for full +6% Take Profit or trailing aggressively."})
 
-    # --- 5. MARGIN (Leverage) ---
+    # --- 4. MARGIN (Leverage) ---
     if margin_util > 75.0:
         alerts.append({"level": "error", "icon": "🚨", "title": f"Leverage Warning: Margin at {margin_util:.1f}%", "action": "BUYING FROZEN. Leverage limits reached. No new capital will be deployed."})
 
-# --- 6. DYNAMIC STOP-LOSS (REGIME & TAIL AWARE) ---
+    # --- 5. DYNAMIC STOP-LOSS (REGIME & TAIL AWARE) ---
     if not phys_df.empty:
         latest_vel = phys_df['vel_smooth'].iloc[-1]
         latest_acc = phys_df['acc_smooth'].iloc[-1]
@@ -1137,7 +1131,7 @@ def generate_tactical_alerts(roll_df, global_metrics, margin_util, ghost_regime,
 
     return alerts
 
-def transmit_directives_to_agent(phys_df, roll_df, ghost_regime):
+def transmit_directives_to_agent(phys_df, roll_df):
     """Translates Streamlit math into a JSON payload and pushes to Google Sheets."""
     # 1. Default Baseline Parameters
     directives = {
@@ -1146,8 +1140,8 @@ def transmit_directives_to_agent(phys_df, roll_df, ghost_regime):
         "dynamic_take_profit_pct": 0.06, 
         "sizing_multiplier": 1.0,        
         "ghost_gates": {
-            "long": ghost_regime.get("Long", True),
-            "short": ghost_regime.get("Short", True)
+            "long": True,
+            "short": True
         }
     }
     
@@ -1411,7 +1405,7 @@ equity_val = float(account['equity']) if account else 0.0
 margin_util = (maint_margin / equity_val * 100) if equity_val > 0 else 0.0
 
 # Pass the ghost_regime to the alerts function
-alerts = generate_tactical_alerts(roll_df, st.session_state.get('global_metrics', {}), margin_util, ghost_regime, phys_df)
+alerts = generate_tactical_alerts(roll_df, st.session_state.get('global_metrics', {}), margin_util, phys_df)
 
 # ---> ADD THIS LINE TO TRIGGER THE WRITE <---
 transmit_directives_to_agent(phys_df, roll_df, ghost_regime)
@@ -1485,16 +1479,39 @@ with tab1:
         elif avg_market_move < -0.5: st.error("BEARISH")
         else: st.warning("NEUTRAL")
 
-    # --- ADDED: GHOST TRAFFIC LIGHTS ---
-    st.markdown("#### 🚦 Ghost Execution Regimes")
+    # --- UPGRADED: DYNAMIC GHOST THROTTLES ---
+    st.markdown("#### 🚦 Ghost Engine Capital Throttles")
     c_light1, c_light2, _spacer2 = st.columns([2, 2, 6])
     
-    # Defaults to Live if ghost_regime data is missing on first load
-    long_color = "🟢 LIVE" if ghost_regime.get("Long", True) else "🔴 SIMULATION"
-    short_color = "🟢 LIVE" if ghost_regime.get("Short", True) else "🔴 SIMULATION"
+    # Calculate continuous multiplier logic (Matching the backend script)
+    def calculate_display_multiplier(ema):
+        if ema >= 0.015: return 1.15
+        elif ema >= 0.0: return 1.0
+        else: return max(0.0, 1.0 + (ema / 0.025))
+
+    # Safely extract history
+    ghost_history = bot_state.get('ghost_history', {'long': [], 'short': []})
     
-    c_light1.metric("Long Strategy", long_color, f"Ghost MA: {ghost_regime.get('Long_MA', '0.0%')}", delta_color="off")
-    c_light2.metric("Short Strategy", short_color, f"Ghost MA: {ghost_regime.get('Short_MA', '0.0%')}", delta_color="off")
+    # Process Long EMA
+    long_ema, long_mult = 0.0, 1.0
+    if len(ghost_history['long']) > 0:
+        long_series = pd.Series(ghost_history['long'])
+        long_ema = float(long_series.ewm(span=9, adjust=False).mean().iloc[-1])
+        long_mult = calculate_display_multiplier(long_ema)
+        
+    long_color = "🟢 Full Flow" if long_mult >= 1.0 else ("🟡 Throttled" if long_mult > 0 else "🔴 Gates Closed")
+    
+    # Process Short EMA
+    short_ema, short_mult = 0.0, 1.0
+    if len(ghost_history['short']) > 0:
+        short_series = pd.Series(ghost_history['short'])
+        short_ema = float(short_series.ewm(span=9, adjust=False).mean().iloc[-1])
+        short_mult = calculate_display_multiplier(short_ema)
+        
+    short_color = "🟢 Full Flow" if short_mult >= 1.0 else ("🟡 Throttled" if short_mult > 0 else "🔴 Gates Closed")
+    
+    c_light1.metric("Long Alloc.", f"{long_mult:.2f}x", f"EMA: {long_ema:.2%} | {long_color}", delta_color="off")
+    c_light2.metric("Short Alloc.", f"{short_mult:.2f}x", f"EMA: {short_ema:.2%} | {short_color}", delta_color="off")
 
     # --- UPGRADED: CAPITAL DEPLOYMENT STATES ---
     st.markdown("#### 🔋 Capital Deployment Status")
