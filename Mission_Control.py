@@ -1914,33 +1914,6 @@ with tab1:
         else:
             st.caption("No active positions currently held.")
 
-        # --- NEW: VIRTUAL HOLDINGS (GHOST POSITIONS) ---
-        st.divider()
-        st.markdown("### 👻 Virtual Holdings (Ghost Positions)")
-        st.caption("Positions currently tracked in simulation to test market regime safety.")
-        
-        ghost_positions = bot_state.get('ghost_positions', {}) if 'bot_state' in locals() else {}
-        if ghost_positions:
-            g_data = []
-            for g_side, info in ghost_positions.items():
-                g_data.append({
-                    "Strategy": g_side.upper(),
-                    "Virtual Entry": info.get('entry_price', 0.0),
-                    "Signal Time (UTC)": pd.to_datetime(info.get('entry_time')).strftime('%Y-%m-%d %H:%M') if info.get('entry_time') else "N/A"
-                })
-            
-            st.dataframe(
-                pd.DataFrame(g_data), 
-                width='stretch', 
-                hide_index=True, 
-                column_config={
-                    "Virtual Entry": st.column_config.NumberColumn(format="$%.2f"),
-                    "Strategy": st.column_config.TextColumn()
-                }
-            )
-        else:
-            st.info("No active virtual positions currently tracked.")
-
         # --- UPGRADED: RECENT ORDERS & SLIPPAGE ---
         st.divider()
 
@@ -2566,6 +2539,72 @@ with tab4:
             st.plotly_chart(fig_g_short, width='stretch')
         else:
             st.info("No Short edge history available yet.")
+
+        # --- NEW: ACTIVE GHOST POSITIONS (LIVE TRACKING) ---
+        st.divider()
+        st.markdown("### 🪂 Active Ghost Positions")
+        st.caption("Live tracking of currently simulated trades, pulled directly from the market in real-time.")
+
+        ghost_positions = bot_state.get('ghost_positions', {})
+        if ghost_positions:
+            # 1. Fetch live prices via Alpaca to calculate real-time virtual PnL
+            ghost_tickers = list(ghost_positions.keys())
+            live_prices = {}
+            try:
+                snapshots = api.get_snapshots(ghost_tickers)
+                for t, snap in snapshots.items():
+                    if snap and snap.latest_trade:
+                        live_prices[t] = float(snap.latest_trade.p)
+            except Exception as e:
+                st.warning(f"Could not fetch live prices for virtual PnL: {e}")
+
+            # 2. Build the data matrix
+            g_data = []
+            for ticker, info in ghost_positions.items():
+                entry_price = float(info.get('entry_price', 0.0))
+                side = info.get('side', 'long').lower()
+                current_price = live_prices.get(ticker, entry_price)
+
+                # Calculate floating PnL and simulated journey (assuming baseline 3% SL / 6% TP for visual scaling)
+                if entry_price > 0:
+                    if side == 'long':
+                        pnl_pct = ((current_price - entry_price) / entry_price) * 100
+                        sl, tp = entry_price * 0.97, entry_price * 1.06
+                        progress = max(0.0, min(1.0, (current_price - sl) / (tp - sl)))
+                    else:
+                        pnl_pct = ((entry_price - current_price) / entry_price) * 100
+                        sl, tp = entry_price * 1.03, entry_price * 0.94
+                        progress = max(0.0, min(1.0, (sl - current_price) / (sl - tp)))
+                else:
+                    pnl_pct = 0.0
+                    progress = 0.5
+
+                g_data.append({
+                    "Ticker": ticker,
+                    "Side": side.upper(),
+                    "Virtual Entry": entry_price,
+                    "Live Price": current_price,
+                    "P/L (%)": pnl_pct,
+                    "Journey": progress
+                })
+
+            # 3. Render the upgraded table
+            st.dataframe(
+                pd.DataFrame(g_data),
+                width='stretch',
+                column_config={
+                    "Virtual Entry": st.column_config.NumberColumn(format="$%.2f"),
+                    "Live Price": st.column_config.NumberColumn(format="$%.2f"),
+                    "P/L (%)": st.column_config.NumberColumn(format="%.2f%%"),
+                    "Journey": st.column_config.ProgressColumn(
+                        "Simulated Journey", help="Progress towards baseline take profit.",
+                        min_value=0.0, max_value=1.0, format="%.2f"
+                    ),
+                },
+                hide_index=True
+            )
+        else:
+            st.info("No active virtual positions currently tracked.") 
 
 with tab5:
     # Calculate required data for charts upfront
