@@ -2543,7 +2543,7 @@ with tab4:
         # --- NEW: ACTIVE GHOST POSITIONS (LIVE TRACKING) ---
         st.divider()
         st.markdown("### 🪂 Active Ghost Positions")
-        st.caption("Live tracking of currently simulated trades, pulled directly from the market in real-time.")
+        st.caption("Live tracking of currently simulated trades. Separated by bias to isolate lagging models.")
 
         ghost_positions = bot_state.get('ghost_positions', {})
         if ghost_positions:
@@ -2565,7 +2565,7 @@ with tab4:
                 side = info.get('side', 'long').lower()
                 current_price = live_prices.get(ticker, entry_price)
 
-                # Calculate floating PnL and simulated journey (assuming baseline 3% SL / 6% TP for visual scaling)
+                # Calculate floating PnL and simulated journey
                 if entry_price > 0:
                     if side == 'long':
                         pnl_pct = ((current_price - entry_price) / entry_price) * 100
@@ -2588,23 +2588,79 @@ with tab4:
                     "Journey": progress
                 })
 
-            # 3. Render the upgraded table
-            st.dataframe(
-                pd.DataFrame(g_data),
-                width='stretch',
-                column_config={
-                    "Virtual Entry": st.column_config.NumberColumn(format="$%.2f"),
-                    "Live Price": st.column_config.NumberColumn(format="$%.2f"),
-                    "P/L (%)": st.column_config.NumberColumn(format="%.2f%%"),
-                    "Journey": st.column_config.ProgressColumn(
-                        "Simulated Journey", help="Progress towards baseline take profit.",
-                        min_value=0.0, max_value=1.0, format="%.2f"
-                    ),
-                },
-                hide_index=True
+            df_g = pd.DataFrame(g_data)
+
+            # --- VISUAL UPGRADE 1: Diverging PnL Bar Chart ---
+            st.markdown("#### 📊 Virtual P/L Distribution")
+            
+            # Sort values so the worst performers (lagging shorts) cluster visibly
+            df_g_sorted = df_g.sort_values("P/L (%)", ascending=True)
+            
+            fig_g_bar = px.bar(
+                df_g_sorted, 
+                x="P/L (%)", 
+                y="Ticker", 
+                orientation="h", 
+                color="Side",
+                color_discrete_map={"LONG": "rgba(0, 255, 65, 0.7)", "SHORT": "rgba(255, 75, 75, 0.7)"},
+                text_auto=".2f"
             )
+            
+            fig_g_bar.add_vline(x=0, line_dash="dash", line_color="white", opacity=0.5)
+            fig_g_bar.update_traces(textposition="outside", textfont=dict(color="#fff"))
+            fig_g_bar.update_layout(
+                height=max(200, len(df_g) * 35), # Dynamically scale height based on position count
+                margin=dict(l=0, r=0, t=10, b=0),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color="#cccccc"),
+                xaxis_title="Simulated P/L (%)",
+                yaxis_title=None,
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, title=None)
+            )
+            st.plotly_chart(fig_g_bar, width='stretch')
+
+            # --- VISUAL UPGRADE 2: Split Dataframes ---
+            col_l, col_s = st.columns(2)
+            
+            with col_l:
+                st.markdown("##### 🟢 Long Candidates")
+                df_long = df_g[df_g['Side'] == 'LONG'].drop(columns=['Side'])
+                if not df_long.empty:
+                    st.dataframe(
+                        df_long,
+                        width='stretch',
+                        column_config={
+                            "Virtual Entry": st.column_config.NumberColumn(format="$%.2f"),
+                            "Live Price": st.column_config.NumberColumn(format="$%.2f"),
+                            "P/L (%)": st.column_config.NumberColumn(format="%.2f%%"),
+                            "Journey": st.column_config.ProgressColumn("Journey to TP", min_value=0.0, max_value=1.0, format="%.2f"),
+                        },
+                        hide_index=True
+                    )
+                else:
+                    st.caption("No active virtual longs.")
+
+            with col_s:
+                st.markdown("##### 🔴 Short Candidates")
+                df_short = df_g[df_g['Side'] == 'SHORT'].drop(columns=['Side'])
+                if not df_short.empty:
+                    st.dataframe(
+                        df_short,
+                        width='stretch',
+                        column_config={
+                            "Virtual Entry": st.column_config.NumberColumn(format="$%.2f"),
+                            "Live Price": st.column_config.NumberColumn(format="$%.2f"),
+                            "P/L (%)": st.column_config.NumberColumn(format="%.2f%%"),
+                            "Journey": st.column_config.ProgressColumn("Journey to TP", min_value=0.0, max_value=1.0, format="%.2f"),
+                        },
+                        hide_index=True
+                    )
+                else:
+                    st.caption("No active virtual shorts.")
+
         else:
-            st.info("No active virtual positions currently tracked.") 
+            st.info("No active virtual positions currently tracked.")
 
 with tab5:
     # Calculate required data for charts upfront
