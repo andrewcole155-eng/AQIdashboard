@@ -1138,16 +1138,16 @@ def generate_tactical_alerts(roll_df, global_metrics, margin_util, phys_df):
     # --- 2. ULCER INDEX (Defense & Stops) ---
     if pd.notna(latest_ulcer):
         if latest_ulcer > 4.0:
-            alerts.append({"level": "warning", "icon": "🛡️", "title": f"Pain Threshold Reached: Ulcer Index elevated ({latest_ulcer:.2f})", "action": "DEFENSIVE PROTOCOL ENGAGED. Standard stops tightened to -1.5%. Winners are being trailed to breakeven immediately."})
+            alerts.append({"level": "warning", "icon": "🛡️", "title": f"Pain Threshold Reached: Ulcer Index elevated ({latest_ulcer:.2f})", "action": "DEFENSIVE PROTOCOL ENGAGED. Standard stops tightened to -1.0%. Winners are being trailed to breakeven immediately."})
         elif latest_ulcer < 1.5:
-            alerts.append({"level": "success", "icon": "🕊️", "title": f"Smooth Sailing: Low Ulcer Index ({latest_ulcer:.2f})", "action": "STANDARD STOPS RESTORED. Drawdowns are minimal. Trades are operating with full -3% breathing room."})
+            alerts.append({"level": "success", "icon": "🕊️", "title": f"Smooth Sailing: Low Ulcer Index ({latest_ulcer:.2f})", "action": "STANDARD STOPS RESTORED. Drawdowns are minimal. Trades are operating with full -2.0% breathing room."})
 
     # --- 3. WIN RATE (Take Profits) ---
     if pd.notna(latest_win_rate):
         if latest_win_rate < 45.0:
-            alerts.append({"level": "info", "icon": "✂️", "title": f"Choppy Execution: Win rate dropping ({latest_win_rate:.1f}%)", "action": "TARGETS FRONT-RUN. Market lacks follow-through. System is scaling out of winners early at +3%."})
+            alerts.append({"level": "info", "icon": "✂️", "title": f"Choppy Execution: Win rate dropping ({latest_win_rate:.1f}%)", "action": "TARGETS FRONT-RUN. Market lacks follow-through. System is scaling out of winners early at +2.0%."})
         elif latest_win_rate > 55.0:
-            alerts.append({"level": "success", "icon": "🏃‍♂️", "title": f"High Hit Rate: Win rate is strong ({latest_win_rate:.1f}%)", "action": "TRAIL/HOLD ACTIVATED. Market is respecting targets. System is holding for full +6% Take Profit or trailing aggressively."})
+            alerts.append({"level": "success", "icon": "🏃‍♂️", "title": f"High Hit Rate: Win rate is strong ({latest_win_rate:.1f}%)", "action": "TRAIL/HOLD ACTIVATED. Market is respecting targets. System is holding for full +4.0% Take Profit or trailing aggressively."})
 
     # --- 4. MARGIN (Leverage) ---
     if margin_util > 75.0:
@@ -1162,7 +1162,7 @@ def generate_tactical_alerts(roll_df, global_metrics, margin_util, phys_df):
         
         # Panic Regime Detected
         if latest_vel <= 0 and latest_acc < 0:
-            alerts.append({"level": "error", "icon": "🛡️", "title": "Regime Drift: PANIC / SHOCK", "action": f"Vector field confirms downward acceleration. Expected Shortfall (CVaR) is {cvar:.2f}%. TIGHTEN HARD STOPS to -1.5% immediately to preserve capital."})
+            alerts.append({"level": "error", "icon": "🛡️", "title": "Regime Drift: PANIC / SHOCK", "action": f"Vector field confirms downward acceleration. Expected Shortfall (CVaR) is {cvar:.2f}%. TIGHTEN HARD STOPS to -1.0% immediately to preserve capital."})
         # Extreme Stretching
         elif latest_dfe > 2.5:
             alerts.append({"level": "warning", "icon": "⚠️", "title": f"Extreme Phase Stretch (DFE: {latest_dfe:.2f})", "action": "System is highly extended from equilibrium. Mean-reversion shock probability is elevated. Trail winners tightly."})
@@ -1174,8 +1174,8 @@ def transmit_directives_to_agent(phys_df, roll_df):
     # 1. Default Baseline Parameters
     directives = {
         "active_regime": "STABLE",
-        "dynamic_stop_loss_pct": 0.03,  
-        "dynamic_take_profit_pct": 0.06, 
+        "dynamic_stop_loss_pct": 0.02,   # <-- UPDATED to 2%
+        "dynamic_take_profit_pct": 0.04, # <-- UPDATED to 4%
         "sizing_multiplier": 1.0,        
         "ghost_gates": {
             "long": True,
@@ -1190,7 +1190,7 @@ def transmit_directives_to_agent(phys_df, roll_df):
         
         if latest_vel <= 0 and latest_acc < 0:
             directives["active_regime"] = "PANIC / SHOCK"
-            directives["dynamic_stop_loss_pct"] = 0.015  
+            directives["dynamic_stop_loss_pct"] = 0.01  # <-- Tightened from 1.5% to 1.0%
             
     if not roll_df.empty:
         latest_sharpe = roll_df['rolling_sharpe'].iloc[-1]
@@ -1200,7 +1200,7 @@ def transmit_directives_to_agent(phys_df, roll_df):
             directives["sizing_multiplier"] = 0.5
             
         if latest_win_rate > 55.0:
-            directives["dynamic_take_profit_pct"] = 0.08  
+            directives["dynamic_take_profit_pct"] = 0.05  # <-- Adjusted trail target to 5%
             
     # 3. Prepare Payload
     payload = {"global_directives": directives}
@@ -1745,8 +1745,8 @@ with tab1:
                 )
                 
                 # 2. Add your crosshairs for standard Stop Loss / Take Profit boundaries
-                fig_ex.add_vline(x=-3.0, line_dash="dash", line_color="red", annotation_text="Hard Stop (-3%)", annotation_position="top right")
-                fig_ex.add_hline(y=6.0, line_dash="dash", line_color="green", annotation_text="Standard TP (+6%)", annotation_position="bottom right")
+                fig_ex.add_vline(x=-2.0, line_dash="dash", line_color="red", annotation_text="Hard Stop (-2%)", annotation_position="top right")
+                fig_ex.add_hline(y=4.0, line_dash="dash", line_color="green", annotation_text="Standard TP (+4%)", annotation_position="bottom right")
                 
                 # 3. UPDATE the traces (targeting ONLY the scatter points)
                 fig_ex.update_traces(
@@ -1840,10 +1840,10 @@ with tab1:
                 
                 # Calculate Journey to TP (0.0 to 1.0)
                 if side == 'long':
-                    sl, tp = entry * 0.97, entry * 1.05
+                    sl, tp = entry * 0.98, entry * 1.04 # <-- UPDATED to 2% SL, 4% TP
                     progress = max(0.0, min(1.0, (current - sl) / (tp - sl)))
                 else:
-                    sl, tp = entry * 1.03, entry * 0.95
+                    sl, tp = entry * 1.02, entry * 0.96 # <-- UPDATED to 2% SL, 4% TP
                     progress = max(0.0, min(1.0, (sl - current) / (sl - tp)))
 
                 # Calculate Days Held (Max 5)
@@ -1884,6 +1884,7 @@ with tab1:
                 },
                 hide_index=True
             )
+
             # --- UPGRADED: THE FLASHPOINT ALERT (TRUE R-MULTIPLES) ---
             st.markdown("##### 🎯 Immediate Flashpoints (True R-Multiple)")
             closest_tp, closest_sl = None, None
@@ -1891,8 +1892,7 @@ with tab1:
 
             for p_data in pos_data:
                 # Calculate True R: (Current PnL %) / (Stop Loss %)
-                # Assumes standard 3% SL from bot config
-                sl_pct = 3.0 
+                sl_pct = 2.0 # <-- UPDATED to 2.0%
                 true_r = p_data["P/L (%)"] / sl_pct
                 
                 # Find the trade closest to Take Profit (Highest +R)
@@ -2569,11 +2569,11 @@ with tab4:
                 if entry_price > 0:
                     if side == 'long':
                         pnl_pct = ((current_price - entry_price) / entry_price) * 100
-                        sl, tp = entry_price * 0.97, entry_price * 1.06
+                        sl, tp = entry_price * 0.98, entry_price * 1.04 # <-- UPDATED to 2% SL, 4% TP
                         progress = max(0.0, min(1.0, (current_price - sl) / (tp - sl)))
                     else:
                         pnl_pct = ((entry_price - current_price) / entry_price) * 100
-                        sl, tp = entry_price * 1.03, entry_price * 0.94
+                        sl, tp = entry_price * 1.02, entry_price * 0.96 # <-- UPDATED to 2% SL, 4% TP
                         progress = max(0.0, min(1.0, (sl - current_price) / (sl - tp)))
                 else:
                     pnl_pct = 0.0
