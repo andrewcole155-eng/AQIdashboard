@@ -1519,7 +1519,8 @@ with tab1:
     # We use cache_data so Streamlit isn't hammering the XML feed on every 60s refresh
     @st.cache_data(ttl=3600)
     def fetch_macro_calendar_dashboard():
-        url = "https://nfs.faireconomy.media/ff_calendar_thisweek.xml"
+        # SWAPPED: 'thismonth.xml' bypasses the US weekend rollover blindspot
+        url = "https://nfs.faireconomy.media/ff_calendar_thismonth.xml"
         headers = {'User-Agent': 'Mozilla/5.0'}
         events_list = []
         try:
@@ -1550,8 +1551,8 @@ with tab1:
                             now_est = datetime.now(pytz.timezone('US/Eastern'))
                             hours_until = (event_dt_est - now_est).total_seconds() / 3600.0
                             
-                            # Only include future events
-                            if hours_until > -1.0: 
+                            # UPDATED: Create a strict rolling 7-day window (168 hours)
+                            if -1.0 < hours_until <= 168.0: 
                                 is_critical = any(kw in title_lower for kw in ['cpi', 'inflation', 'fomc', 'fed ', 'rba', 'interest rate', 'rate decision'])
                                 events_list.append({
                                     "Event": f"{country}: {title}",
