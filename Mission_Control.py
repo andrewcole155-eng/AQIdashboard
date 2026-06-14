@@ -1509,6 +1509,98 @@ with tab1:
         elif avg_market_move < -0.5: st.error("BEARISH")
         else: st.warning("NEUTRAL")
 
+    # =====================================================================
+    # --- MACRO CALENDAR & SYSTEM POSTURE ---
+    # =====================================================================
+    st.markdown("#### 📅 Tactical Macro Briefing & System Posture")
+    
+    import xml.etree.ElementTree as ET
+    
+    # We use cache_data so Streamlit isn't hammering the XML feed on every 60s refresh
+    @st.cache_data(ttl=3600)
+    def fetch_macro_calendar_dashboard():
+        url = "https://nfs.faireconomy.media/ff_calendar_thisweek.xml"
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        events_list = []
+        try:
+            response = requests.get(url, headers=headers, timeout=5)
+            response.raise_for_status()
+            root = ET.fromstring(response.content)
+            
+            for event in root.findall('event'):
+                country = event.find('country').text if event.find('country') is not None else ''
+                impact = event.find('impact').text if event.find('impact') is not None else ''
+                title = event.find('title').text if event.find('title') is not None else ''
+                date_str = event.find('date').text if event.find('date') is not None else ''
+                time_str = event.find('time').text if event.find('time') is not None else ''
+                
+                if country in ['USD', 'AUD'] and time_str and time_str.lower() != 'all day':
+                    title_lower = title.lower()
+                    is_high_impact = impact == 'High'
+                    has_keyword = any(keyword in title_lower for keyword in ['cpi', 'fomc', 'fed', 'payroll', 'nfp', 'inflation', 'rba', 'retail sales', 'wage price', 'interest rate', 'rate decision'])
+                    
+                    if is_high_impact or has_keyword:
+                        # Parse time to Eastern
+                        try:
+                            event_dt_str = f"{date_str} {time_str.replace('am', 'AM').replace('pm', 'PM')}"
+                            event_dt_est = datetime.strptime(event_dt_str, "%m-%d-%Y %I:%M%p")
+                            event_dt_est = pytz.timezone('US/Eastern').localize(event_dt_est)
+                            
+                            # Calculate hours from NOW
+                            now_est = datetime.now(pytz.timezone('US/Eastern'))
+                            hours_until = (event_dt_est - now_est).total_seconds() / 3600.0
+                            
+                            # Only include future events
+                            if hours_until > -1.0: 
+                                is_critical = any(kw in title_lower for kw in ['cpi', 'inflation', 'fomc', 'fed ', 'rba', 'interest rate', 'rate decision'])
+                                events_list.append({
+                                    "Event": f"{country}: {title}",
+                                    "Time (EST)": event_dt_est.strftime('%a %I:%M %p'),
+                                    "Hours Until": hours_until,
+                                    "Critical": is_critical
+                                })
+                        except Exception:
+                            continue
+        except Exception:
+            pass
+        return events_list
+
+    upcoming_macro = fetch_macro_calendar_dashboard()
+    
+    if upcoming_macro:
+        # Sort by closest first
+        upcoming_macro.sort(key=lambda x: x["Hours Until"])
+        next_event = upcoming_macro[0]
+        hrs = next_event["Hours Until"]
+        
+        c_mac1, c_mac2 = st.columns([1, 1])
+        
+        # Display the closest event
+        with c_mac1:
+            if next_event["Critical"]:
+                st.error(f"**Next Event:** {next_event['Event']} ({next_event['Time (EST)']})")
+            else:
+                st.warning(f"**Next Event:** {next_event['Event']} ({next_event['Time (EST)']})")
+                
+        # Define current system posture based on the closest event's timing
+        with c_mac2:
+            if hrs <= 4.0:
+                if next_event["Critical"]:
+                    st.error("🚨 **System Posture:** THE STRADDLE ENGAGED (Entries Frozen, Stops Tightened 50%)")
+                else:
+                    st.warning("⚠️ **System Posture:** SAFETY LOCK ENGAGED (Entries Frozen)")
+            else:
+                st.success(f"🟢 **System Posture:** STANDARD TRAIL & TARGETS (T-{hrs:.1f} hours to lock)")
+                
+        # Optional: Show full table of upcoming events
+        with st.expander("View Full Weekly Calendar"):
+            st.dataframe(pd.DataFrame(upcoming_macro).drop(columns=['Critical']), use_container_width=True, hide_index=True)
+    else:
+        st.success("🟢 **System Posture:** STANDARD TRAIL & TARGETS")
+        st.info("No critical Tier-1 Macro Events scheduled for USD/AUD for the remainder of the week.")
+
+    st.divider()
+
     # --- UPGRADED: DYNAMIC GHOST THROTTLES ---
     st.markdown("#### 🚦 Ghost Engine Capital Throttles")
     c_light1, c_light2, _spacer2 = st.columns([2, 2, 6])
