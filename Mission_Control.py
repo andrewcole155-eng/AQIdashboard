@@ -1519,7 +1519,6 @@ with tab1:
     # We use cache_data so Streamlit isn't hammering the XML feed on every 60s refresh
     @st.cache_data(ttl=3600)
     def fetch_macro_calendar_dashboard():
-        # REVERTED: Back to 'thisweek.xml' to fix the 404 error
         url = "https://nfs.faireconomy.media/ff_calendar_thisweek.xml"
         headers = {'User-Agent': 'Mozilla/5.0'}
         events_list = []
@@ -1535,25 +1534,25 @@ with tab1:
                 date_str = event.find('date').text if event.find('date') is not None else ''
                 time_str = event.find('time').text if event.find('time') is not None else ''
                 
-                if country in ['USD', 'AUD'] and time_str and time_str.lower() != 'all day':
+                if country in ['USD', 'AUD', 'JPY'] and time_str and time_str.lower() != 'all day':
                     title_lower = title.lower()
                     is_high_impact = impact == 'High'
                     has_keyword = any(keyword in title_lower for keyword in ['cpi', 'fomc', 'fed', 'payroll', 'nfp', 'inflation', 'rba', 'retail sales', 'wage price', 'interest rate', 'rate decision'])
                     
                     if is_high_impact or has_keyword:
-                        # Parse time to Eastern
+                        # --- FIX: Parse as UTC instead of US/Eastern ---
                         try:
                             event_dt_str = f"{date_str} {time_str.replace('am', 'AM').replace('pm', 'PM')}"
-                            event_dt_est = datetime.strptime(event_dt_str, "%m-%d-%Y %I:%M%p")
-                            event_dt_est = pytz.timezone('US/Eastern').localize(event_dt_est)
+                            event_dt_utc = datetime.strptime(event_dt_str, "%m-%d-%Y %I:%M%p")
+                            event_dt_utc = pytz.timezone('UTC').localize(event_dt_utc)
                             
-                            # Convert to Brisbane Time
+                            # Convert strictly to Brisbane Time
                             brisbane_tz = pytz.timezone('Australia/Brisbane')
-                            event_dt_bne = event_dt_est.astimezone(brisbane_tz)
+                            event_dt_bne = event_dt_utc.astimezone(brisbane_tz)
                             
-                            # Calculate hours from NOW
-                            now_est = datetime.now(pytz.timezone('US/Eastern'))
-                            hours_until = (event_dt_est - now_est).total_seconds() / 3600.0
+                            # Calculate hours from NOW (using UTC to match)
+                            now_utc = datetime.now(pytz.utc)
+                            hours_until = (event_dt_utc - now_utc).total_seconds() / 3600.0
                             
                             # Filter out expired events
                             if hours_until > -1.0: 
@@ -1567,7 +1566,7 @@ with tab1:
                                 
                                 events_list.append({
                                     "Event": f"{country}: {title}",
-                                    "Severity": severity_label,  # <-- Added to dictionary
+                                    "Severity": severity_label,
                                     "Time (AEST)": event_dt_bne.strftime('%a %I:%M %p'),
                                     "Hours Until": hours_until,
                                     "Critical": is_critical
