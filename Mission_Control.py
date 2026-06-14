@@ -1547,6 +1547,10 @@ with tab1:
                             event_dt_est = datetime.strptime(event_dt_str, "%m-%d-%Y %I:%M%p")
                             event_dt_est = pytz.timezone('US/Eastern').localize(event_dt_est)
                             
+                            # Convert to Brisbane Time
+                            brisbane_tz = pytz.timezone('Australia/Brisbane')
+                            event_dt_bne = event_dt_est.astimezone(brisbane_tz)
+                            
                             # Calculate hours from NOW
                             now_est = datetime.now(pytz.timezone('US/Eastern'))
                             hours_until = (event_dt_est - now_est).total_seconds() / 3600.0
@@ -1554,9 +1558,17 @@ with tab1:
                             # Filter out expired events
                             if hours_until > -1.0: 
                                 is_critical = any(kw in title_lower for kw in ['cpi', 'inflation', 'fomc', 'fed ', 'rba', 'interest rate', 'rate decision'])
+                                
+                                # --- NEW: Map raw XML impact to a clean visual string ---
+                                if impact == 'High': severity_label = '🔴 High'
+                                elif impact == 'Medium': severity_label = '🟡 Medium'
+                                elif impact == 'Low': severity_label = '🟢 Low'
+                                else: severity_label = '⚪ None'
+                                
                                 events_list.append({
                                     "Event": f"{country}: {title}",
-                                    "Time (EST)": event_dt_est.strftime('%a %I:%M %p'),
+                                    "Severity": severity_label,  # <-- Added to dictionary
+                                    "Time (AEST)": event_dt_bne.strftime('%a %I:%M %p'),
                                     "Hours Until": hours_until,
                                     "Critical": is_critical
                                 })
@@ -1579,9 +1591,9 @@ with tab1:
         # Display the closest event
         with c_mac1:
             if next_event["Critical"]:
-                st.error(f"**Next Event:** {next_event['Event']} ({next_event['Time (EST)']})")
+                st.error(f"**Next Event:** {next_event['Event']} ({next_event['Time (AEST)']})") # <-- Updated Key
             else:
-                st.warning(f"**Next Event:** {next_event['Event']} ({next_event['Time (EST)']})")
+                st.warning(f"**Next Event:** {next_event['Event']} ({next_event['Time (AEST)']})") # <-- Updated Key
                 
         # Define current system posture based on the closest event's timing
         with c_mac2:
@@ -1595,7 +1607,12 @@ with tab1:
                 
         # Optional: Show full table of upcoming events
         with st.expander("View Full Weekly Calendar"):
-            st.dataframe(pd.DataFrame(upcoming_macro).drop(columns=['Critical']), use_container_width=True, hide_index=True)
+            # The new 'Severity' column will automatically display here
+            st.dataframe(
+                pd.DataFrame(upcoming_macro).drop(columns=['Critical']), 
+                use_container_width=True, 
+                hide_index=True
+            )
     else:
         st.success("🟢 **System Posture:** STANDARD TRAIL & TARGETS")
         st.info("No critical Tier-1 Macro Events scheduled for USD/AUD for the remainder of the week.")
