@@ -1609,7 +1609,7 @@ with tab1:
             # The new 'Severity' column will automatically display here
             st.dataframe(
                 pd.DataFrame(upcoming_macro).drop(columns=['Critical']), 
-                use_container_width=True, 
+                width="stretch", 
                 hide_index=True
             )
     else:

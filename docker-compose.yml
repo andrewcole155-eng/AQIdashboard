@@ -3,7 +3,7 @@ services:
     build: .
     container_name: aqi_dashboard
     working_dir: /app              # <--- ADD THIS LINE
-    command: /opt/conda/envs/tf_noavx/bin/streamlit run Mission_Control.py --server.port=8501 --server.address=0.0.0.0
+    command: /opt/conda/envs/tf_noavx/bin/streamlit run Mission_Control.py --server.port=8501 --server.address=0.0.0.0 --server.fileWatcherType=none
     environment:
       - TZ=Australia/Brisbane
       - PYTHONUNBUFFERED=1       # Ensures Streamlit logs output immediately
