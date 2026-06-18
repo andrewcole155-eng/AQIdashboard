@@ -19,6 +19,7 @@ environment.yml
 # === Trading & Analysis Scripts ===
 ALPACA_Trading_Bot_REAL_V11.py
 ALPACA_Trading_Bot_REAL_V11_TEST.py
+data_pipeline.py
 Quantum_Analysis_*.py
 run_quantum_script_*.sh
 cron_Quantum_Analysis_*.log
