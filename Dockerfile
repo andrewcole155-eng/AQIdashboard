@@ -1,16 +1,28 @@
 # Start with an official Miniconda image
 FROM continuumio/miniconda3
 
-# Install system dependencies (cron, procps for pkill, util-linux for flock)
-RUN apt-get update && apt-get install -y cron procps nano util-linux && rm -rf /var/lib/apt/lists/*
+# Install system dependencies (git, cron, procps for pkill, util-linux for flock, nano)
+# Combined into a single RUN layer for Docker cache efficiency
+RUN apt-get update && apt-get install -y \
+    git \
+    cron \
+    procps \
+    nano \
+    util-linux \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy the environment file and create the exact same conda environment inside Docker
+# Copy the environment file
 COPY environment.yml .
+
+# Prevent git from asking for credentials in a headless build environment
+# This solves the "fatal: could not read Username for 'https://github.com'" error
+ENV GIT_TERMINAL_PROMPT=0
+
+# Create the Conda environment inside Docker
 RUN conda env create -f environment.yml -n tf_noavx
 
-# ---> ADD THIS LINE HERE <---
 # Installs neo4j directly into the environment without busting the Conda download cache
 RUN /opt/conda/envs/tf_noavx/bin/pip install neo4j
 
