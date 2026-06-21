@@ -26,6 +26,8 @@ RUN conda env create -f environment.yml -n tf_noavx
 # Installs neo4j directly into the environment without busting the Conda download cache
 RUN /opt/conda/envs/tf_noavx/bin/pip install neo4j
 
+RUN /opt/conda/envs/tf_noavx/bin/pip install --no-deps pandas-ta-openbb
+
 # Make RUN commands use the new environment
 SHELL ["conda", "run", "-n", "tf_noavx", "/bin/bash", "-c"]
 
