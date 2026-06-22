@@ -28,6 +28,7 @@ Signal_Echo*.py
 cron_SignalEcho.log
 test_sheets.py
 ppo_v*.txt
+backfill_neo4j.py
 
 # === Assets & Misc ===
 AQI_Logo.png
