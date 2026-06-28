@@ -162,7 +162,7 @@ def get_portfolio_history(_api):
         st.error(f"Portfolio History API Error: {e}") 
         return pd.DataFrame()
 
-parse_latest_run_logic(logs):
+def parse_latest_run_logic(logs):
     """
     Parses logs to extract:
     1. Signals (Decisions)
