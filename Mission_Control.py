@@ -3069,21 +3069,21 @@ with tab6:
     
     if model_health:
        # Safety Check: If it came through as a string, try to parse it as JSON
-       if isinstance(model_health, str):
-           try:
+        if isinstance(model_health, str):
+            try:
                import json
                model_health = json.loads(model_health)
-           except ValueError:
+            except ValueError:
                model_health = {} # Fallback to empty if it's an unparseable string
 
        # Only run the dictionary sort if we actually have a dictionary
-       if isinstance(model_health, dict):
-           sorted_health = sorted(
+        if isinstance(model_health, dict):
+            sorted_health = sorted(
                model_health.items(),
                key=lambda x: 0 if 'DEGRADED' in x[1].get('Status', '') else 1
-           )
-       else:
-           sorted_health = [] # Fallback to prevent crash
+            )
+        else:
+            sorted_health = [] # Fallback to prevent crash
 
         html_output = ""
         for ticker, profile in sorted_health:
