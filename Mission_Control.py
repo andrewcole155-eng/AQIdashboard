@@ -206,6 +206,7 @@ def parse_latest_run_logic(logs):
                     if t_name not in model_health:
                         model_health[t_name] = {
                             "Status": "STABLE",
+                            "Lifecycle": "🟢 ACTIVE (Inference)", # <--- NEW
                             "Base IR": float(ir_match.group(1)),
                             "Live IR": float(ir_match.group(1)),  
                             "Decay": 1.0,
@@ -223,18 +224,37 @@ def parse_latest_run_logic(logs):
                 if ticker_match:
                     t_name = ticker_match.group(1)
                     if t_name not in model_health:
+                        status_clean = ticker_match.group(2).strip()
+                        
+                        # --- LIFECYCLE GENERATION LOGIC ---
+                        # Derive MLOps lifecycle from operational status and decay
+                        decay_val = float(parts[3].split(":")[1].strip()) if "Decay" in parts[3] else 1.0
+                        mdd_val = int(re.search(r"(\d+)d", parts[4]).group(1)) if len(parts) > 4 else 0
+                        
+                        lifecycle_stage = "Unknown"
+                        if "OPTIMAL" in status_clean:
+                            lifecycle_stage = "🟢 ACTIVE (Challenger)" if decay_val > 0.9 else "🟢 ACTIVE (Production)"
+                        elif "STABLE" in status_clean:
+                            lifecycle_stage = "🟡 MATURE (Monitoring)"
+                        elif "DEGRADED" in status_clean:
+                            if mdd_val > 42:
+                                lifecycle_stage = "🔴 DEPRECATED (Pending Rollback)"
+                            else:
+                                lifecycle_stage = "🟠 DRIFTING (Requires Retraining)"
+                        # ----------------------------------
+
                         model_health[t_name] = {
-                            "Status": ticker_match.group(2).strip(),
+                            "Status": status_clean,
+                            "Lifecycle": lifecycle_stage, # <--- NEW
                             "Base IR": float(parts[1].split(":")[1].strip()) if "Base IR" in parts[1] else 0.0,
                             "Live IR": float(parts[2].split(":")[1].strip()) if "Live IR" in parts[2] else 0.0,
-                            "Decay": float(parts[3].split(":")[1].strip()) if "Decay" in parts[3] else 1.0,
-                            "MDD": int(re.search(r"(\d+)d", parts[4]).group(1)) if len(parts) > 4 else 0,
+                            "Decay": decay_val,
+                            "MDD": mdd_val,
                             "Base MDD": int(re.search(r"(\d+)d", parts[5]).group(1)) if len(parts) > 5 else 0,
                             "Base WR": float(re.search(r"([\d\.]+)%", parts[6]).group(1)) if len(parts) > 6 else 50.0
                         }
             except Exception:
                 pass
-        # ------------------------------------------
 
         # Extract Ghost Regime
         if "GHOST REGIME |" in line and ghost_regime["Long_MA"] == "0.0%":
@@ -3140,11 +3160,19 @@ with tab6:
             else:
                 mdd_text = f"Drawdown duration has breached limits at <strong style='color: #ff4b4b;'>{mdd} days</strong> (Danger: > 42 days)."
 
+            lifecycle = profile.get('Lifecycle', 'Unknown') # <--- Retrieve the new value
+
             # 5. Build the HTML Block with Side-By-Side Comparison Grid
             html_output += f'<div style="margin-bottom: 12px; padding: 15px; border-left: 5px solid {statusColor}; background-color: #1e1e1e; border-radius: 6px;">'
             html_output += f'<strong style="font-size: 1.2em; color: #fff;">{ticker}</strong>'
             html_output += f'<span style="background-color: {statusColor}; color: #111; padding: 3px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; margin-left: 10px;">{status}</span>'
             
+            # --- RENDER LIFECYCLE ---
+            html_output += f'<div style="margin-top: 8px; font-size: 0.9em; color: #aaa;">'
+            html_output += f'<strong>Lifecycle Phase:</strong> <span style="color: #fff;">{lifecycle}</span>'
+            html_output += f'</div>'
+            # ------------------------
+
             # --- THE NEW SIDE-BY-SIDE HUD ---
             html_output += f'<div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85em; color: #aaa; background: #2a2a2a; padding: 10px; border-radius: 4px;">'
             html_output += f'<div><strong style="color: #fff;">🏗️ Training Blueprint</strong><br>Base IR: {base_ir:.2f} &nbsp;|&nbsp; Win Rate: {base_wr:.1f}% &nbsp;|&nbsp; MDD: {base_mdd}d</div>'
