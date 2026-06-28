@@ -3063,11 +3063,16 @@ with tab5:
         st.info("Gathering historical Policy Landscape data...")
 
 with tab6:
-# --- QUANTUM ALPHA MODEL LIFECYCLE MONITOR ---
-    st.markdown("### 🧠 Quantum Alpha Model Lifecycle Monitor")
-    st.caption("Real-time alignment tracking between weekend optimization blueprints and live out-of-sample market execution.")
-    
-    if model_health:
+    # --- QUANTUM ALPHA MODEL LIFECYCLE MONITOR ---
+    st.subheader("🧠 Quantum Alpha Model Lifecycle Monitor")
+        st.markdown("Real-time alignment tracking between weekend optimization blueprints and live out-of-sample market execution.")
+        
+        # --- ADD THESE TWO DEBUG LINES HERE ---
+        st.warning("🕵️‍♂️ DEBUGGING RAW DATA:")
+        st.write(model_health) 
+        # --------------------------------------
+
+        if model_health:
        # Safety Check: If it came through as a string, try to parse it as JSON
         if isinstance(model_health, str):
             try:
