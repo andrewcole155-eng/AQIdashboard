@@ -1331,7 +1331,7 @@ if account:
     logs = read_bot_logs()
     # Unpack the new ghost_regime AND model_health variables here      
     last_run_str, last_run_dt, parsed_signals, watchlist_data, conviction_data, ghost_regime, model_health = parse_latest_run_logic(logs)
-    
+    c
     # --- NEW: WEEKEND PERSISTENCE MEMORY ---
     if conviction_data and len(conviction_data) > 0:
         st.session_state['saved_conviction'] = conviction_data
@@ -1625,7 +1625,7 @@ with tab1:
             # The new 'Severity' column will automatically display here
             st.dataframe(
                 pd.DataFrame(upcoming_macro).drop(columns=['Critical']), 
-                use_container_width=True, 
+                width='stretch', 
                 hide_index=True
             )
     else:
@@ -3068,11 +3068,22 @@ with tab6:
     st.caption("Real-time alignment tracking between weekend optimization blueprints and live out-of-sample market execution.")
     
     if model_health:
-        # Sort so Degraded models naturally bubble to the top of your view
-        sorted_health = sorted(
-            model_health.items(), 
-            key=lambda x: (0 if 'DEGRADED' in x[1]['Status'] else (1 if 'STABLE' in x[1]['Status'] else 2), x[1]['Decay'])
-        )
+       # Safety Check: If it came through as a string, try to parse it as JSON
+       if isinstance(model_health, str):
+           try:
+               import json
+               model_health = json.loads(model_health)
+           except ValueError:
+               model_health = {} # Fallback to empty if it's an unparseable string
+
+       # Only run the dictionary sort if we actually have a dictionary
+       if isinstance(model_health, dict):
+           sorted_health = sorted(
+               model_health.items(),
+               key=lambda x: 0 if 'DEGRADED' in x[1].get('Status', '') else 1
+           )
+       else:
+           sorted_health = [] # Fallback to prevent crash
 
         html_output = ""
         for ticker, profile in sorted_health:
