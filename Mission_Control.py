@@ -1329,9 +1329,9 @@ if account:
     
     # Process Logs
     logs = read_bot_logs()
-    # Unpack the new ghost_regime AND model_health variables here
-    last_run_str, last_run_dt, parsed_signals, watchlist_data, conviction_data, model_health = parse_latest_run_logic(logs)
-
+    # Unpack the new ghost_regime AND model_health variables here      
+    last_run_str, last_run_dt, parsed_signals, watchlist_data, conviction_data, ghost_regime, model_health = parse_latest_run_logic(logs)
+    
     # --- NEW: WEEKEND PERSISTENCE MEMORY ---
     if conviction_data and len(conviction_data) > 0:
         st.session_state['saved_conviction'] = conviction_data
