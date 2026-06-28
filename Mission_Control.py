@@ -196,10 +196,9 @@ def parse_latest_run_logic(logs):
         elif "Failed to connect to Neo4j" in line:
             if neo4j_status == "Unknown": neo4j_status = "🔴 Disconnected"
 
-        # --- ROBUST LOG SCRAPER: Support both standard clean log lines and legacy profiles ---
+        # --- ROBUST LOG SCRAPER: Force extract regardless of timestamp presence ---
         if "Baseline Loaded" in line or "IR Benchmark" in line:
             try:
-                # Extracts from format: "[KO] Weekend Baseline Loaded. IR Benchmark: 0.016"
                 ticker_match = re.search(r"\[([A-Z]+)\]", line)
                 ir_match = re.search(r"IR Benchmark:\s*([\d\.-]+)", line)
                 if ticker_match and ir_match:
@@ -208,7 +207,7 @@ def parse_latest_run_logic(logs):
                         model_health[t_name] = {
                             "Status": "STABLE",
                             "Base IR": float(ir_match.group(1)),
-                            "Live IR": float(ir_match.group(1)),  # Default to base during initialization
+                            "Live IR": float(ir_match.group(1)),  
                             "Decay": 1.0,
                             "MDD": 0,
                             "Base MDD": 0,
@@ -217,7 +216,6 @@ def parse_latest_run_logic(logs):
             except Exception:
                 pass
                 
-        # Fallback to process legacy structured profiles if they appear in the log pipeline
         elif "Profile:" in line and "Base IR:" in line:
             try:
                 parts = line.split("|")
