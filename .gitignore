@@ -15,7 +15,6 @@ google_creds.json
 optuna_studies.db
 trading_state.json
 trading_bot.lock
-environment.yml
 
 # === Trading & Analysis Scripts ===
 ALPACA_Trading_Bot_*.py
