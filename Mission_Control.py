@@ -51,6 +51,8 @@ st.markdown("""
     .log-warn { color: #cca700; font-weight: bold; } /* Yellow */
     .log-err { color: #f44747; font-weight: bold; }  /* Red */
     .log-ticker { color: #c586c0; font-weight: bold;} /* Purple for Tickers */
+    .log-neo4j { color: #00ff41; font-weight: bold; } /* Green for Graph DB */
+    .log-stgnn { color: #f4b236; font-weight: bold; } /* Gold for Quantum/GNN ✨ */
     </style>
 """, unsafe_allow_html=True)
 
@@ -160,7 +162,7 @@ def get_portfolio_history(_api):
         st.error(f"Portfolio History API Error: {e}") 
         return pd.DataFrame()
 
-def parse_latest_run_logic(logs):
+parse_latest_run_logic(logs):
     """
     Parses logs to extract:
     1. Signals (Decisions)
@@ -172,9 +174,10 @@ def parse_latest_run_logic(logs):
     signals = {}
     watchlist = [] 
     neural_conviction = {} 
-    model_health = {} # <--- NEW: Dictionary to hold the model profiles
+    model_health = {} 
     last_run_timestamp = None
     last_run_str = "Unknown"
+    neo4j_status = "Unknown" # <--- ADDED: Graph DB Tracker
     
     # Default Ghost State
     ghost_regime = {"Long": True, "Short": True, "Long_MA": "0.0%", "Short_MA": "0.0%"}
@@ -186,6 +189,13 @@ def parse_latest_run_logic(logs):
     action_map = {"0": "HOLD", "1": "LONG", "2": "SHORT", "3": "CLOSE"}
     
     for line in reversed(logs):
+        
+        # --- NEW: Extract Neo4j Connection Status ---
+        if "Successfully connected to Neo4j" in line:
+            if neo4j_status == "Unknown": neo4j_status = "🟢 Connected"
+        elif "Failed to connect to Neo4j" in line:
+            if neo4j_status == "Unknown": neo4j_status = "🔴 Disconnected"
+
         # --- ROBUST LOG SCRAPER: Support both standard clean log lines and legacy profiles ---
         if "Baseline Loaded" in line or "IR Benchmark" in line:
             try:
@@ -284,7 +294,8 @@ def parse_latest_run_logic(logs):
                     pass
 
     unique_watchlist = {v['Ticker']:v for v in watchlist}.values()
-    return last_run_str, last_run_timestamp, signals, list(unique_watchlist), neural_conviction, model_health
+    # Update the return statement at the very end of the function:
+    return last_run_str, last_run_timestamp, signals, list(unique_watchlist), neural_conviction, model_health, neo4j_status
 
 @st.cache_data(ttl=300)
 def get_market_benchmark():
@@ -1259,6 +1270,10 @@ def format_log_line(line):
     # 5. Colorize Ghost Trading Tags
     clean_line = clean_line.replace("[GHOST]", '<span style="color: #c586c0; font-weight: bold;">[GHOST]</span>')
     clean_line = clean_line.replace("🚦 GHOST GATE", '<span style="color: #ffb000; font-weight: bold;">🚦 GHOST GATE</span>')
+    
+    # 6. Colorize Neo4j and STGNN/Quantum Features
+    clean_line = clean_line.replace("[Neo4j]", '<span class="log-neo4j">[Neo4j]</span>')
+    clean_line = clean_line.replace("✨", '<span class="log-stgnn">✨</span>')
 
     return f'<div class="log-line">{clean_line}</div>'
 

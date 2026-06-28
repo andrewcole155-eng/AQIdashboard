@@ -5,6 +5,7 @@ logs/
 Models/
 Observations/
 reports/
+Reports/
 
 # === Secrets, Configs, & State ===
 config_Alpaca_REAL_V2_ORIGINAL.json
