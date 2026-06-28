@@ -1331,7 +1331,7 @@ if account:
     logs = read_bot_logs()
     # Unpack the new ghost_regime AND model_health variables here      
     last_run_str, last_run_dt, parsed_signals, watchlist_data, conviction_data, ghost_regime, model_health = parse_latest_run_logic(logs)
-    c
+    
     # --- NEW: WEEKEND PERSISTENCE MEMORY ---
     if conviction_data and len(conviction_data) > 0:
         st.session_state['saved_conviction'] = conviction_data
@@ -3074,7 +3074,7 @@ with tab6:
                import json
                model_health = json.loads(model_health)
             except ValueError:
-               model_health = {} # Fallback to empty if it's an unparseable string
+               model_health = {} # Fallback to emptyc if it's an unparseable string
 
        # Only run the dictionary sort if we actually have a dictionary
         if isinstance(model_health, dict):
