@@ -226,10 +226,11 @@ def parse_latest_run_logic(logs):
                     if t_name not in model_health:
                         status_clean = ticker_match.group(2).strip()
                         
-                        # --- LIFECYCLE GENERATION LOGIC ---
-                        # Derive MLOps lifecycle from operational status and decay
                         decay_val = float(parts[3].split(":")[1].strip()) if "Decay" in parts[3] else 1.0
-                        mdd_val = int(re.search(r"(\d+)d", parts[4]).group(1)) if len(parts) > 4 else 0
+                        
+                        # Safe extraction logic
+                        mdd_match = re.search(r"(\d+)d", parts[4]) if len(parts) > 4 else None
+                        mdd_val = int(mdd_match.group(1)) if mdd_match else 0
                         
                         lifecycle_stage = "Unknown"
                         if "OPTIMAL" in status_clean:
@@ -241,17 +242,19 @@ def parse_latest_run_logic(logs):
                                 lifecycle_stage = "🔴 DEPRECATED (Pending Rollback)"
                             else:
                                 lifecycle_stage = "🟠 DRIFTING (Requires Retraining)"
-                        # ----------------------------------
-
+                                
+                        base_mdd_match = re.search(r"(\d+)d", parts[5]) if len(parts) > 5 else None
+                        base_wr_match = re.search(r"([\d\.]+)%", parts[6]) if len(parts) > 6 else None
+                        
                         model_health[t_name] = {
                             "Status": status_clean,
-                            "Lifecycle": lifecycle_stage, # <--- NEW
+                            "Lifecycle": lifecycle_stage,
                             "Base IR": float(parts[1].split(":")[1].strip()) if "Base IR" in parts[1] else 0.0,
                             "Live IR": float(parts[2].split(":")[1].strip()) if "Live IR" in parts[2] else 0.0,
                             "Decay": decay_val,
                             "MDD": mdd_val,
-                            "Base MDD": int(re.search(r"(\d+)d", parts[5]).group(1)) if len(parts) > 5 else 0,
-                            "Base WR": float(re.search(r"([\d\.]+)%", parts[6]).group(1)) if len(parts) > 6 else 50.0
+                            "Base MDD": int(base_mdd_match.group(1)) if base_mdd_match else 0,
+                            "Base WR": float(base_wr_match.group(1)) if base_wr_match else 50.0
                         }
             except Exception:
                 pass
@@ -324,7 +327,7 @@ def parse_latest_run_logic(logs):
 
     unique_watchlist = {v['Ticker']:v for v in watchlist}.values()
     
-    return last_run_str, last_run_timestamp, signals, list(unique_watchlist), neural_conviction, model_health, neo4j_status
+    return last_run_str, last_run_timestamp, signals, list(unique_watchlist), neural_conviction, ghost_regime, model_health, neo4j_status
 
 @st.cache_data(ttl=300)
 def get_market_benchmark():
@@ -1358,8 +1361,8 @@ if account:
     
     # Process Logs
     logs = read_bot_logs()
-    # Unpack the new ghost_regime AND model_health variables here      
-    last_run_str, last_run_dt, parsed_signals, watchlist_data, conviction_data, ghost_regime, model_health = parse_latest_run_logic(logs)
+    # Unpack the correct 8 variables to align memory state
+    last_run_str, last_run_dt, parsed_signals, watchlist_data, conviction_data, ghost_regime, model_health, neo4j_status = parse_latest_run_logic(logs)
     
     # --- NEW: WEEKEND PERSISTENCE MEMORY ---
     if conviction_data and len(conviction_data) > 0:
@@ -1563,7 +1566,6 @@ with tab1:
     # We use cache_data so Streamlit isn't hammering the XML feed on every 60s refresh
     @st.cache_data(ttl=3600)
     def fetch_macro_calendar_dashboard():
-        # REVERTED: Back to 'thisweek.xml' to fix the 404 error
         url = "https://nfs.faireconomy.media/ff_calendar_thisweek.xml"
         headers = {'User-Agent': 'Mozilla/5.0'}
         events_list = []
@@ -1573,6 +1575,7 @@ with tab1:
             root = ET.fromstring(response.content)
             
             for event in root.findall('event'):
+                # [KEEP EXISTING XML PARSING LOGIC HERE...]
                 country = event.find('country').text if event.find('country') is not None else ''
                 impact = event.find('impact').text if event.find('impact') is not None else ''
                 title = event.find('title').text if event.find('title') is not None else ''
@@ -1585,25 +1588,20 @@ with tab1:
                     has_keyword = any(keyword in title_lower for keyword in ['cpi', 'fomc', 'fed', 'payroll', 'nfp', 'inflation', 'rba', 'retail sales', 'wage price', 'interest rate', 'rate decision'])
                     
                     if is_high_impact or has_keyword:
-                        # Parse time to Eastern
                         try:
                             event_dt_str = f"{date_str} {time_str.replace('am', 'AM').replace('pm', 'PM')}"
                             event_dt_est = datetime.strptime(event_dt_str, "%m-%d-%Y %I:%M%p")
                             event_dt_est = pytz.timezone('US/Eastern').localize(event_dt_est)
                             
-                            # Convert to Brisbane Time
                             brisbane_tz = pytz.timezone('Australia/Brisbane')
                             event_dt_bne = event_dt_est.astimezone(brisbane_tz)
                             
-                            # Calculate hours from NOW
                             now_est = datetime.now(pytz.timezone('US/Eastern'))
                             hours_until = (event_dt_est - now_est).total_seconds() / 3600.0
                             
-                            # Filter out expired events
                             if hours_until > -1.0: 
                                 is_critical = any(kw in title_lower for kw in ['cpi', 'inflation', 'fomc', 'fed ', 'rba', 'interest rate', 'rate decision'])
                                 
-                                # --- NEW: Map raw XML impact to a clean visual string ---
                                 if impact == 'High': severity_label = '🔴 High'
                                 elif impact == 'Medium': severity_label = '🟡 Medium'
                                 elif impact == 'Low': severity_label = '🟢 Low'
@@ -1611,16 +1609,19 @@ with tab1:
                                 
                                 events_list.append({
                                     "Event": f"{country}: {title}",
-                                    "Severity": severity_label,  # <-- Added to dictionary
+                                    "Severity": severity_label,
                                     "Time (AEST)": event_dt_bne.strftime('%a %I:%M %p'),
                                     "Hours Until": hours_until,
                                     "Critical": is_critical
                                 })
                         except Exception:
                             continue
-        except Exception:
-            pass
-        return events_list
+            return events_list
+        except Exception as e:
+            # Clear the cache explicitly so a temporary failure doesn't ruin the next hour of trading
+            st.cache_data.clear()
+            st.warning(f"Macro feed disconnected: {e}")
+            return None
 
     upcoming_macro = fetch_macro_calendar_dashboard()
     
@@ -3191,7 +3192,18 @@ with tab6:
         st.info("Awaiting model performance data from the live execution log stream...")
     # --------------------------------------------------
 
+# Complete Replacement for the AUTO REFRESH LOOP at the end of the file
 # === AUTO REFRESH LOOP ===
 if auto_refresh:
-    time.sleep(60)
-    st.rerun()
+    import streamlit.components.v1 as components
+    # Offload the wait time to the client's browser, freeing the server thread immediately.
+    components.html(
+        """
+        <script>
+        setTimeout(function() {
+            window.parent.location.reload();
+        }, 60000);
+        </script>
+        """,
+        height=0
+    )
