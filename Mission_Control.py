@@ -1217,17 +1217,17 @@ def generate_tactical_alerts(roll_df, global_metrics, margin_util, phys_df):
 
     return alerts
 
-def transmit_directives_to_agent(phys_df, roll_df):
+def transmit_directives_to_agent(phys_df, roll_df, macro_frozen=False):
     """Translates Streamlit math into a JSON payload and pushes to Google Sheets."""
     # 1. Default Baseline Parameters
     directives = {
         "active_regime": "STABLE",
-        "dynamic_stop_loss_pct": 0.02,   # <-- UPDATED to 2%
-        "dynamic_take_profit_pct": 0.04, # <-- UPDATED to 4%
+        "dynamic_stop_loss_pct": 0.02,   
+        "dynamic_take_profit_pct": 0.04, 
         "sizing_multiplier": 1.0,        
         "ghost_gates": {
-            "long": True,
-            "short": True
+            "long": not macro_frozen,  # FIX: Live linked to Macro Calendar
+            "short": not macro_frozen
         }
     }
     
@@ -1238,7 +1238,7 @@ def transmit_directives_to_agent(phys_df, roll_df):
         
         if latest_vel <= 0 and latest_acc < 0:
             directives["active_regime"] = "PANIC / SHOCK"
-            directives["dynamic_stop_loss_pct"] = 0.01  # <-- Tightened from 1.5% to 1.0%
+            directives["dynamic_stop_loss_pct"] = 0.01  
             
     if not roll_df.empty:
         latest_sharpe = roll_df['rolling_sharpe'].iloc[-1]
@@ -1248,16 +1248,16 @@ def transmit_directives_to_agent(phys_df, roll_df):
             directives["sizing_multiplier"] = 0.5
             
         if latest_win_rate > 55.0:
-            directives["dynamic_take_profit_pct"] = 0.05  # <-- Adjusted trail target to 5%
+            directives["dynamic_take_profit_pct"] = 0.05  
             
     # 3. Prepare Payload
     payload = {"global_directives": directives}
     payload_str = json.dumps(payload, indent=4)
     
-    # 4. RATE LIMIT PROTECTION: Only write if the payload changed
+    # 4. RATE LIMIT PROTECTION
     if 'last_transmitted_payload' in st.session_state:
         if st.session_state['last_transmitted_payload'] == payload_str:
-            return # Skip Google API call, nothing changed
+            return 
             
     # 5. Write to Google Sheets
     try:
@@ -1265,16 +1265,12 @@ def transmit_directives_to_agent(phys_df, roll_df):
         gc = gspread.service_account_from_dict(credentials)
         sh = gc.open("Angel_Bot_Logs")
         
-        # Connect to or create the Overrides tab
         try:
             worksheet = sh.worksheet("Overrides")
         except gspread.exceptions.WorksheetNotFound:
             worksheet = sh.add_worksheet(title="Overrides", rows="10", cols="5")
             
-        # Update Cell A1 with the JSON string
         worksheet.update(range_name='A1', values=[[payload_str]])
-        
-        # Save to session state so we don't spam the API next loop
         st.session_state['last_transmitted_payload'] = payload_str
         
     except Exception as e:
@@ -1489,8 +1485,8 @@ margin_util = (maint_margin / equity_val * 100) if equity_val > 0 else 0.0
 # Pass the ghost_regime to the alerts function
 alerts = generate_tactical_alerts(roll_df, st.session_state.get('global_metrics', {}), margin_util, phys_df)
 
-# ---> ADD THIS LINE TO TRIGGER THE WRITE <---
-transmit_directives_to_agent(phys_df, roll_df)
+# ---> TRIGGER THE WRITE WITH MACRO STATE <---
+transmit_directives_to_agent(phys_df, roll_df, macro_frozen=macro_frozen)
 
 if alerts:
     st.markdown("### ⚡ Active System Overrides")
@@ -1629,40 +1625,49 @@ with tab1:
             return None
 
     upcoming_macro = fetch_macro_calendar_dashboard()
+    macro_frozen = False
     
     if upcoming_macro:
-        # Sort by closest first
-        upcoming_macro.sort(key=lambda x: x["Hours Until"])
-        next_event = upcoming_macro[0]
-        hrs = next_event["Hours Until"]
+        # FIX: Filter out past events whose post-event buffer has elapsed to stop array masking
+        # We retain events down to -0.5 (30 mins past) for the post-event buffer
+        active_events = [e for e in upcoming_macro if e["Hours Until"] >= -0.5]
         
-        c_mac1, c_mac2 = st.columns([1, 1])
-        
-        # Display the closest event
-        with c_mac1:
-            if next_event["Critical"]:
-                st.error(f"**Next Event:** {next_event['Event']} ({next_event['Time (AEST)']})") # <-- Updated Key
-            else:
-                st.warning(f"**Next Event:** {next_event['Event']} ({next_event['Time (AEST)']})") # <-- Updated Key
-                
-        # Define current system posture based on the closest event's timing
-        with c_mac2:
-            if hrs <= 4.0:
+        if active_events:
+            active_events.sort(key=lambda x: x["Hours Until"])
+            next_event = active_events[0]
+            hrs = next_event["Hours Until"]
+            
+            c_mac1, c_mac2 = st.columns([1, 1])
+            
+            with c_mac1:
                 if next_event["Critical"]:
-                    st.error("🚨 **System Posture:** THE STRADDLE ENGAGED (Entries Frozen, Stops Tightened 50%)")
+                    st.error(f"**Next Event:** {next_event['Event']} ({next_event['Time (AEST)']})") 
                 else:
-                    st.warning("⚠️ **System Posture:** SAFETY LOCK ENGAGED (Entries Frozen)")
-            else:
-                st.success(f"🟢 **System Posture:** STANDARD TRAIL & TARGETS (T-{hrs:.1f} hours to lock)")
+                    st.warning(f"**Next Event:** {next_event['Event']} ({next_event['Time (AEST)']})") 
+                    
+            with c_mac2:
+                # FIX: Institutional Pre-Buffers (1 Hour for Critical, 30 Mins for Standard High)
+                pre_buffer = 1.0 if next_event["Critical"] else 0.5
                 
-        # Optional: Show full table of upcoming events
-        with st.expander("View Full Weekly Calendar"):
-            # The new 'Severity' column will automatically display here
-            st.dataframe(
-                pd.DataFrame(upcoming_macro).drop(columns=['Critical']), 
-                width='stretch', 
-                hide_index=True
-            )
+                # Check if we are within the blackout window (pre-buffer to 30 mins post-buffer)
+                if hrs <= pre_buffer and hrs >= -0.5:
+                    macro_frozen = True
+                    if next_event["Critical"]:
+                        st.error("🚨 **System Posture:** THE STRADDLE ENGAGED (Entries Frozen)")
+                    else:
+                        st.warning("⚠️ **System Posture:** SAFETY LOCK ENGAGED (Entries Frozen)")
+                else:
+                    st.success(f"🟢 **System Posture:** STANDARD TRAIL & TARGETS (T-{hrs:.1f} hours to lock)")
+                    
+            with st.expander("View Full Weekly Calendar"):
+                st.dataframe(
+                    pd.DataFrame(upcoming_macro).drop(columns=['Critical']), 
+                    width='stretch', 
+                    hide_index=True
+                )
+        else:
+            st.success("🟢 **System Posture:** STANDARD TRAIL & TARGETS")
+            st.info("No immediate Tier-1 Macro Events pending.")
     else:
         st.success("🟢 **System Posture:** STANDARD TRAIL & TARGETS")
         st.info("No critical Tier-1 Macro Events scheduled for USD/AUD for the remainder of the week.")
@@ -1677,7 +1682,7 @@ with tab1:
     def calculate_display_multiplier(ema):
         if ema >= 0.015: return 1.15
         elif ema >= -0.01: return 1.0
-        else: return max(0.10, 1.0 + (ema / 0.05))
+        else: return max(0.0, 1.0 + (ema / 0.05)) # FIX: Replaced 0.10 floor with 0.0
 
     # Safely extract history
     ghost_history = bot_state.get('ghost_history', {'long': [], 'short': []})
