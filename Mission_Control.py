@@ -1630,8 +1630,6 @@ with tab1:
 
     upcoming_macro = fetch_macro_calendar_dashboard()
     # This will successfully update the global variable if it triggers!
-    if hrs <= pre_buffer and hrs >= -0.5:
-        macro_frozen = True
     
     if upcoming_macro:
         # FIX: Filter out past events whose post-event buffer has elapsed to stop array masking
@@ -1639,9 +1637,14 @@ with tab1:
         active_events = [e for e in upcoming_macro if e["Hours Until"] >= -0.5]
         
         if active_events:
+            # 1. Filter out past events whose post-event buffer has elapsed (prevents array masking)
             active_events.sort(key=lambda x: x["Hours Until"])
             next_event = active_events[0]
+            
+            # 2. NOW we safely define 'hrs' and 'pre_buffer' inside the scope!
             hrs = next_event["Hours Until"]
+            # FIX: Institutional Pre-Buffers (1 Hour for Critical, 30 Mins for Standard High)
+            pre_buffer = 1.0 if next_event["Critical"] else 0.5
             
             c_mac1, c_mac2 = st.columns([1, 1])
             
@@ -1652,10 +1655,7 @@ with tab1:
                     st.warning(f"**Next Event:** {next_event['Event']} ({next_event['Time (AEST)']})") 
                     
             with c_mac2:
-                # FIX: Institutional Pre-Buffers (1 Hour for Critical, 30 Mins for Standard High)
-                pre_buffer = 1.0 if next_event["Critical"] else 0.5
-                
-                # Check if we are within the blackout window (pre-buffer to 30 mins post-buffer)
+                # 3. Check if we are within the blackout window safely
                 if hrs <= pre_buffer and hrs >= -0.5:
                     macro_frozen = True
                     if next_event["Critical"]:
