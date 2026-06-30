@@ -196,7 +196,7 @@ def parse_latest_run_logic(logs):
         elif "Failed to connect to Neo4j" in line:
             if neo4j_status == "Unknown": neo4j_status = "🔴 Disconnected"
 
-        # --- ROBUST LOG SCRAPER ---
+        # --- EXTRACT MODEL HEALTH ---
         if "Baseline Loaded" in line or "IR Benchmark" in line:
             try:
                 ticker_match = re.search(r"\[([A-Z]+)\]", line)
@@ -225,7 +225,6 @@ def parse_latest_run_logic(logs):
                     t_name = ticker_match.group(1)
                     if t_name not in model_health:
                         status_clean = ticker_match.group(2).strip()
-                        
                         raw_base_ir = float(parts[1].split(":")[1].strip()) if "Base IR" in parts[1] else 0.0
                         live_ir = float(parts[2].split(":")[1].strip()) if "Live IR" in parts[2] else 0.0
                         
@@ -268,7 +267,7 @@ def parse_latest_run_logic(logs):
             except Exception:
                 pass
 
-        # Extract Ghost Regime
+        # --- EXTRACT GHOST REGIME ---
         if "GHOST REGIME |" in line and ghost_regime["Long_MA"] == "0.0%":
             try:
                 long_part = line.split("|")[1]
@@ -279,20 +278,31 @@ def parse_latest_run_logic(logs):
                 ghost_regime["Short"] = "True" in short_part
             except Exception: pass
 
+        # --- UPGRADED ROBUST NEURAL CONVICTION SCRAPER ---
         all_tags = re.findall(r'\[([A-Z]+)\]', line)
         valid_tickers = [tag for tag in all_tags if tag not in ignore_tags and tag != 'GHOST']
         
         if valid_tickers:
             ticker = valid_tickers[-1] 
             
+            # 1. State Initializer (Create an empty holding pen for the ticker)
+            if ticker not in neural_conviction:
+                neural_conviction[ticker] = {"Confidence": 0.0, "Action": ""}
+                
+            # 2. Accumulate Confidence
             conf_match = conf_pattern.search(line)
-            confidence = float(conf_match.group(1)) if conf_match else 0.0
-            
+            line_conf = float(conf_match.group(1)) if conf_match else 0.0
+            if line_conf > 0 and neural_conviction[ticker]["Confidence"] == 0.0:
+                neural_conviction[ticker]["Confidence"] = line_conf
+                
+            # 3. Accumulate Action
             action_match = re.search(r'(?:PROPOSAL|SIGNAL):\s*(\d)', line)
-            action_str = action_map.get(action_match.group(1), "") if action_match else ""
-            
-            if ticker not in neural_conviction and confidence > 0:
-                neural_conviction[ticker] = {"Confidence": confidence, "Action": action_str}
+            line_action = action_map.get(action_match.group(1), "") if action_match else ""
+            if line_action != "" and neural_conviction[ticker]["Action"] == "":
+                neural_conviction[ticker]["Action"] = line_action
+
+            # Determine best known confidence for signals/watchlist tagging
+            best_known_conf = neural_conviction[ticker]["Confidence"] if neural_conviction[ticker]["Confidence"] > 0 else line_conf
 
             if ticker not in signals:
                 clean_msg = line.split(f"[{ticker}]")[-1].strip()
@@ -300,17 +310,17 @@ def parse_latest_run_logic(logs):
                     signals[ticker] = "✅ " + clean_msg
                 elif "Forcing HOLD" in line or "Margin" in line or "GHOST GATE" in line:
                     signals[ticker] = "⏸️ " + clean_msg
-                    if confidence > 20.0: 
-                        tag = "🔥 Screaming Setup" if confidence > 80.0 else ("⚡ High Conviction" if confidence > 50.0 else "👀 Watching")
-                        watchlist.append({"Ticker": ticker, "Conf": f"{confidence:.1f}%", "Status": tag})
+                    if best_known_conf > 20.0: 
+                        tag = "🔥 Screaming Setup" if best_known_conf > 80.0 else ("⚡ High Conviction" if best_known_conf > 50.0 else "👀 Watching")
+                        watchlist.append({"Ticker": ticker, "Conf": f"{best_known_conf:.1f}%", "Status": tag})
                 elif "Prediction" in line:
                     signals[ticker] = "🤔 " + clean_msg
                 elif "Error" in line:
                     signals[ticker] = "❌ " + clean_msg
                 else:
-                    if "RAW PROPOSAL" in line and confidence > 20.0:
-                         tag = "🔥 Screaming Setup" if confidence > 80.0 else ("⚡ High Conviction" if confidence > 50.0 else "👀 Watching")
-                         watchlist.append({"Ticker": ticker, "Conf": f"{confidence:.1f}%", "Status": tag})
+                    if "RAW PROPOSAL" in line and best_known_conf > 20.0:
+                         tag = "🔥 Screaming Setup" if best_known_conf > 80.0 else ("⚡ High Conviction" if best_known_conf > 50.0 else "👀 Watching")
+                         watchlist.append({"Ticker": ticker, "Conf": f"{best_known_conf:.1f}%", "Status": tag})
 
         # --- TIMESTAMP TRACKING ---
         if last_run_str == "Unknown":
@@ -330,9 +340,11 @@ def parse_latest_run_logic(logs):
     if not model_health and 'saved_model_health' in st.session_state:
         model_health = st.session_state['saved_model_health']
 
+    # 4. Filter out placeholder logic (Drop any generic log line that never hit a neural score)
+    final_conviction = {k: v for k, v in neural_conviction.items() if v["Confidence"] > 0}
     unique_watchlist = {v['Ticker']:v for v in watchlist}.values()
     
-    return last_run_str, last_run_timestamp, signals, list(unique_watchlist), neural_conviction, ghost_regime, model_health, neo4j_status
+    return last_run_str, last_run_timestamp, signals, list(unique_watchlist), final_conviction, ghost_regime, model_health, neo4j_status
 
 @st.cache_data(ttl=300)
 def get_market_benchmark():
