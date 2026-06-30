@@ -902,7 +902,7 @@ def calculate_3d_physics(df):
     phys_df['jerk'] = phys_df['acceleration'].diff()
 
     # Smooth slightly to reduce noise
-    phys_df['vel_smooth'] = phys_df['velocity'].rolling(3).mean()
+    phys_df['vel_smooth'] = phys_df['velocity'].ewm(span=3, adjust=False).mean()
     phys_df['acc_smooth'] = phys_df['acceleration'].rolling(3).mean()
     phys_df['jerk_smooth'] = phys_df['jerk'].rolling(3).mean()
     
