@@ -3211,13 +3211,10 @@ with tab6:
 # Complete Replacement for the AUTO REFRESH LOOP at the end of the file
 # === AUTO REFRESH LOOP ===
 if auto_refresh:
-    st.iframe(
-        src="""
-        <script>
-        setTimeout(function() {
-            window.parent.location.reload();
-        }, 60000);
-        </script>
-        """,
-        height=1
-    )
+    st.html("""
+    <script>
+    setTimeout(function() {
+        window.parent.location.reload();
+    }, 60000);
+    </script>
+    """)
