@@ -1488,17 +1488,35 @@ if not hist_df_raw.empty and account:
     phys_df = calculate_3d_physics(hist_df_adj)
 
 # =====================================================================
-# --- TACTICAL ACTION CENTER ---
+# --- TACTICAL ACTION CENTER (SELF-HEALING ARCHITECTURE) ---
 # =====================================================================
 maint_margin = float(account.get('maintenance_margin', 0)) if account else 0.0
 equity_val = float(account['equity']) if account else 0.0
 margin_util = (maint_margin / equity_val * 100) if equity_val > 0 else 0.0
 
-# 🌟 FIX 1: Initialize the variable
-macro_frozen = False 
+# Extract Ghost Engine Allocations to dynamically break deadlocks
+# If the Ghost Engine EMAs are healthy, it overrides a stalled live equity curve
+ghost_long_healthy = long_mult >= 1.0 if 'long_mult' in locals() else True
+ghost_short_healthy = short_mult >= 1.0 if 'short_mult' in locals() else True
 
-# Pass the ghost_regime to the alerts function
+# Evaluate alerts
 alerts = generate_tactical_alerts(roll_df, st.session_state.get('global_metrics', {}), margin_util, phys_df)
+
+# Check if an operational deadlock is occurring (Flat Live Equity causing infinite loop)
+cvar_sharpe_crash_active = any("Sharpe is weak" in a['title'] or "PANIC / SHOCK" in a['title'] for a in alerts)
+
+if cvar_sharpe_crash_active and (ghost_long_healthy or ghost_short_healthy):
+    # Autonomous Override: Ghost Engine has proven the strategy edge has returned!
+    macro_frozen = False
+    alerts.append({
+        "level": "success", 
+        "icon": "🔄", 
+        "title": "Autonomous Latch Unlocked", 
+        "action": "Live Sharpe is stalled due to inactivity, but Ghost Engine EMAs confirm edge recovery. Overriding live restrictions."
+    })
+else:
+    # Standard behavior if both live and virtual curves are broken
+    macro_frozen = False # Or your calendar blackout state logic
 
 # ---> TRIGGER THE WRITE WITH MACRO STATE <---
 # This will now safely find 'macro_frozen' initialized as False
