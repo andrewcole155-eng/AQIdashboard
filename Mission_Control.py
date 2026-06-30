@@ -3219,5 +3219,5 @@ if auto_refresh:
         }, 60000);
         </script>
         """,
-        height=0
+        height=1
     )
