@@ -3211,10 +3211,8 @@ with tab6:
 # Complete Replacement for the AUTO REFRESH LOOP at the end of the file
 # === AUTO REFRESH LOOP ===
 if auto_refresh:
-    import streamlit.components.v1 as components
-    # Offload the wait time to the client's browser, freeing the server thread immediately.
-    components.html(
-        """
+    st.iframe(
+        srcdoc="""
         <script>
         setTimeout(function() {
             window.parent.location.reload();
