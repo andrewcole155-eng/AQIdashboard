@@ -3211,8 +3211,9 @@ with tab6:
 # Complete Replacement for the AUTO REFRESH LOOP at the end of the file
 # === AUTO REFRESH LOOP ===
 if auto_refresh:
+    # Offload the wait time to the client's browser using native st.iframe
     st.iframe(
-        srcdoc="""
+        """
         <script>
         setTimeout(function() {
             window.parent.location.reload();
