@@ -311,7 +311,7 @@ def parse_latest_run_logic(logs):
                 elif "Forcing HOLD" in line or "Margin" in line or "GHOST GATE" in line:
                     signals[ticker] = "⏸️ " + clean_msg
                     if best_known_conf > 20.0: 
-                        tag = "🔥 Screaming Setup" if best_known_conf > 80.0 else ("⚡ High Conviction" if best_known_conf > 50.0 else "👀 Watching")
+                        tag = "🔥 Screaming Setup" if best_known_conf > 80.0 else ("⚡ High Conviction" if best_known_conf > 40.0 else "👀 Watching")
                         watchlist.append({"Ticker": ticker, "Conf": f"{best_known_conf:.1f}%", "Status": tag})
                 elif "Prediction" in line:
                     signals[ticker] = "🤔 " + clean_msg
@@ -319,7 +319,7 @@ def parse_latest_run_logic(logs):
                     signals[ticker] = "❌ " + clean_msg
                 else:
                     if "RAW PROPOSAL" in line and best_known_conf > 20.0:
-                         tag = "🔥 Screaming Setup" if best_known_conf > 80.0 else ("⚡ High Conviction" if best_known_conf > 50.0 else "👀 Watching")
+                         tag = "🔥 Screaming Setup" if best_known_conf > 80.0 else ("⚡ High Conviction" if best_known_conf > 40.0 else "👀 Watching")
                          watchlist.append({"Ticker": ticker, "Conf": f"{best_known_conf:.1f}%", "Status": tag})
 
         # --- TIMESTAMP TRACKING ---
