@@ -1482,10 +1482,14 @@ maint_margin = float(account.get('maintenance_margin', 0)) if account else 0.0
 equity_val = float(account['equity']) if account else 0.0
 margin_util = (maint_margin / equity_val * 100) if equity_val > 0 else 0.0
 
+# 🌟 FIX 1: Initialize the variable
+macro_frozen = False 
+
 # Pass the ghost_regime to the alerts function
 alerts = generate_tactical_alerts(roll_df, st.session_state.get('global_metrics', {}), margin_util, phys_df)
 
 # ---> TRIGGER THE WRITE WITH MACRO STATE <---
+# This will now safely find 'macro_frozen' initialized as False
 transmit_directives_to_agent(phys_df, roll_df, macro_frozen=macro_frozen)
 
 if alerts:
@@ -1625,7 +1629,9 @@ with tab1:
             return None
 
     upcoming_macro = fetch_macro_calendar_dashboard()
-    macro_frozen = False
+    # This will successfully update the global variable if it triggers!
+    if hrs <= pre_buffer and hrs >= -0.5:
+        macro_frozen = True
     
     if upcoming_macro:
         # FIX: Filter out past events whose post-event buffer has elapsed to stop array masking
