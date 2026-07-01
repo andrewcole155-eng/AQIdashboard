@@ -1238,8 +1238,8 @@ def transmit_directives_to_agent(phys_df, roll_df, macro_frozen=False):
         "dynamic_take_profit_pct": 0.04, 
         "sizing_multiplier": 1.0,        
         "ghost_gates": {
-            "long": not macro_frozen,  # FIX: Live linked to Macro Calendar
-            "short": not macro_frozen
+            "long": macro_frozen,  # CORRECTED: True means Ghost Routing is ON
+            "short": macro_frozen  # CORRECTED: True means Ghost Routing is ON
         }
     }
     
