@@ -3143,7 +3143,7 @@ with tab6:
     st.subheader("🧠 Quantum Alpha Model Lifecycle Monitor")
     st.markdown("Real-time alignment tracking between weekend optimization blueprints and live out-of-sample market execution.")
         
-    st.write(model_health) 
+    #st.write(model_health) 
     # --------------------------------------
 
     if model_health:
