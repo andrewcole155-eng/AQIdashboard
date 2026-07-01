@@ -1495,15 +1495,18 @@ equity_val = float(account['equity']) if account else 0.0
 margin_util = (maint_margin / equity_val * 100) if equity_val > 0 else 0.0
 
 # Extract Ghost Engine Allocations to dynamically break deadlocks
-# If the Ghost Engine EMAs are healthy, it overrides a stalled live equity curve
 ghost_long_healthy = long_mult >= 1.0 if 'long_mult' in locals() else True
 ghost_short_healthy = short_mult >= 1.0 if 'short_mult' in locals() else True
 
 # Evaluate alerts
 alerts = generate_tactical_alerts(roll_df, st.session_state.get('global_metrics', {}), margin_util, phys_df)
 
-# Check if an operational deadlock is occurring (Flat Live Equity causing infinite loop)
+# Check if an operational deadlock is occurring
 cvar_sharpe_crash_active = any("Sharpe is weak" in a['title'] or "PANIC / SHOCK" in a['title'] for a in alerts)
+
+# Safely inherit macro_frozen from the calendar block above. If the calendar failed, default to False.
+if 'macro_frozen' not in locals():
+    macro_frozen = False
 
 if cvar_sharpe_crash_active and (ghost_long_healthy or ghost_short_healthy):
     # Autonomous Override: Ghost Engine has proven the strategy edge has returned!
@@ -1514,12 +1517,9 @@ if cvar_sharpe_crash_active and (ghost_long_healthy or ghost_short_healthy):
         "title": "Autonomous Latch Unlocked", 
         "action": "Live Sharpe is stalled due to inactivity, but Ghost Engine EMAs confirm edge recovery. Overriding live restrictions."
     })
-else:
-    # Standard behavior if both live and virtual curves are broken
-    macro_frozen = False # Or your calendar blackout state logic
+# REPLACED: Removed the 'else' block that hardcoded macro_frozen to False.
 
 # ---> TRIGGER THE WRITE WITH MACRO STATE <---
-# This will now safely find 'macro_frozen' initialized as False
 transmit_directives_to_agent(phys_df, roll_df, macro_frozen=macro_frozen)
 
 if alerts:
@@ -3143,8 +3143,6 @@ with tab6:
     st.subheader("🧠 Quantum Alpha Model Lifecycle Monitor")
     st.markdown("Real-time alignment tracking between weekend optimization blueprints and live out-of-sample market execution.")
         
-    # --- ADD THESE TWO DEBUG LINES HERE ---
-    st.warning("🕵️‍♂️ DEBUGGING RAW DATA:")
     st.write(model_health) 
     # --------------------------------------
 
